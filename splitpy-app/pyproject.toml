@@ -1,0 +1,37 @@
+[project]
+name = "splitpy-app"
+version = "0.1.0"
+description = "Application layer and adapters for splitPy: use cases, REST API, persistence."
+authors = [
+    { name = "Lorenzo Fattori", email = "lorenzo.fattori2@studio.unibo.it" },
+    { name = "Alessandro Grotti", email = "alessandro.grotti@studio.unibo.it" },
+]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = ["splitpy-core"]
+
+[tool.poetry]
+packages = [{ include = "splitpy_app" }]
+
+[tool.poetry.dependencies]
+splitpy-core = { path = "../splitpy-core", develop = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "ruff (>=0.16.1,<0.17.0)",
+    "black (>=26.5.1,<27.0.0)"
+]

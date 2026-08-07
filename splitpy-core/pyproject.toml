@@ -1,0 +1,34 @@
+[project]
+name = "splitpy-core"
+version = "0.1.0"
+description = "Domain library for shared expense management: money arithmetic, split strategies, balances and settlement."
+authors = [
+    { name = "Lorenzo Fattori", email = "lorenzo.fattori2@studio.unibo.it" },
+    { name = "Alessandro Grotti", email = "alessandro.grotti@studio.unibo.it" },
+]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = []
+
+[tool.poetry]
+packages = [{ include = "splitpy_core" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "hypothesis (>=6.165.2,<7.0.0)",
+    "ruff (>=0.16.1,<0.17.0)",
+    "black (>=26.5.1,<27.0.0)"
+]
