@@ -31,6 +31,10 @@ class EmptyParticipantSet(SplitError):
     code = "EMPTY_PARTICIPANT_SET"
 
 
+class NegativeShare(SplitError):
+    code = "NEGATIVE_SHARE"
+
+
 class MembershipError(DomainError):
     code = "MEMBERSHIP_ERROR"
 
