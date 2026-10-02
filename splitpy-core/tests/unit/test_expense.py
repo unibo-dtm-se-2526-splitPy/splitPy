@@ -79,3 +79,7 @@ class TestExpenseSoftDelete:
             OCCURRED_ON,
         )
         assert created.deleted_at is None
+
+    def test_expense_is_immutable(self):
+        with pytest.raises(AttributeError):
+            expense(eur("10.00")).deleted_at = DELETED_AT

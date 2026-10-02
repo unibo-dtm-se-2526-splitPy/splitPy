@@ -4,6 +4,7 @@ import pytest
 
 from splitpy_core.domain import errors
 from splitpy_core.domain.errors import (
+    AdminSuccessorRequired,
     AlreadyAMember,
     CurrencyMismatch,
     DomainError,
@@ -39,6 +40,7 @@ HIERARCHY = {
     AlreadyAMember: MembershipError,
     MemberHasNonZeroBalance: MembershipError,
     NotAnAdministrator: MembershipError,
+    AdminSuccessorRequired: MembershipError,
     GroupArchived: DomainError,
     InvalidPayment: DomainError,
     InvalidDateRange: DomainError,
