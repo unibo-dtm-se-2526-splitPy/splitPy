@@ -1,6 +1,8 @@
 [project]
 name = "splitpy-core"
-version = "0.1.0"
+# Placeholder: the released version is the core-v* git tag computed by semantic-release,
+# stamped here only at build time (main is PR-only, so CI never commits a version bump).
+version = "0.0.0"
 description = "Domain library for shared expense management: money arithmetic, split strategies, balances and settlement."
 authors = [
     { name = "Lorenzo Fattori", email = "lorenzo.fattori2@studio.unibo.it" },
@@ -26,6 +28,21 @@ known-first-party = ["splitpy_core"]
 
 [tool.black]
 line-length = 100
+
+[tool.semantic_release]
+tag_format = "core-v{version}"
+version_toml = ["pyproject.toml:project.version"]
+commit_parser = "conventional-monorepo"
+# 0.x until the domain API is stable: breaking changes bump the minor, 1.0.0 is a deliberate release.
+allow_zero_version = true
+major_on_zero = false
+build_command = "poetry build"
+
+[tool.semantic_release.commit_parser_options]
+path_filters = ["."]
+
+[tool.semantic_release.branches.main]
+match = "^main$"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
