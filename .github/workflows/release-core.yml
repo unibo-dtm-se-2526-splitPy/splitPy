@@ -1,0 +1,42 @@
+name: release-core
+
+on:
+  push:
+    branches: [main]
+    paths: ['splitpy-core/**']
+
+concurrency:
+  group: release-core
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: splitpy-core
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pipx install poetry
+      - run: poetry install --no-interaction
+      - name: Test before releasing
+        run: poetry run pytest
+      - run: pip install python-semantic-release==10.7.0
+      # main is protected by a PR-only ruleset, so no version-bump commit is pushed:
+      # the core-v* tag is the source of truth and the version is stamped only at build time.
+      - name: Tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release version --no-commit --no-changelog
+      - name: Upload dist to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release publish
