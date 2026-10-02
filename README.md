@@ -29,6 +29,12 @@ Requires Python 3.12+ and Poetry 2.x.
 
 Run the test suite of either package with `poetry run pytest`.
 
+Ruff lint fixes run automatically on commit via [pre-commit](https://pre-commit.com/).
+Install it once per clone:
+
+    pipx install pre-commit  # or: pip install pre-commit
+    pre-commit install
+
 ## Authors
 
 - Lorenzo Fattori - lorenzo.fattori2@studio.unibo.it
