@@ -6,6 +6,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Self
 
+from splitpy_core.domain import events
 from splitpy_core.domain.balances import Balances
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.errors import (
@@ -55,13 +56,19 @@ class Group:
         self._members = {member.user_id: member for member in members}
         self._expenses = {expense.id: expense for expense in expenses}
         self._payments = {payment.id: payment for payment in payments}
+        # Only commands record events: a group rebuilt from storage starts with none.
+        self._events: list[events.DomainEvent] = []
 
     @classmethod
     def create(
         cls, id: GroupId, name: str, currency: Currency, *, founder: UserId, at: datetime
     ) -> Self:
         """The founder is an ADMIN from the start, so a group is never without members."""
-        return cls(id, name, currency, [Member(founder, Role.ADMIN, joined_at=at)])
+        group = cls(id, name, currency, [Member(founder, Role.ADMIN, joined_at=at)])
+        group._record(
+            events.GroupCreated(group_id=id, name=name, currency=currency, founder=founder)
+        )
+        return group
 
     @property
     def id(self) -> GroupId:
@@ -86,6 +93,7 @@ class Group:
             raise AlreadyAMember(f"{user_id} is already a member")
         # A former member who rejoins gets a fresh membership.
         self._members[user_id] = Member(user_id, role, joined_at=at)
+        self._record(events.MemberAdded(group_id=self._id, user_id=user_id, role=role, by=by))
 
     def remove_member(
         self, user_id: UserId, *, by: UserId, at: datetime, successor: UserId | None = None
@@ -102,6 +110,7 @@ class Group:
             self._check_member(successor)
             self._members[successor] = replace(self._members[successor], role=Role.ADMIN)
         self._members[user_id] = replace(self._members[user_id], left_at=at)
+        self._record(events.MemberRemoved(group_id=self._id, user_id=user_id, by=by))
 
     def register_expense(
         self,
@@ -120,6 +129,16 @@ class Group:
         expense = Expense(id, description, amount, paid_by, split, category, occurred_on)
         self._check_expense(expense)
         self._expenses[id] = expense
+        self._record(
+            events.ExpenseRegistered(
+                group_id=self._id,
+                expense_id=id,
+                amount=amount,
+                paid_by=paid_by,
+                category=category,
+                by=by,
+            )
+        )
         return expense
 
     def update_expense(self, id: ExpenseId, *, by: UserId, **changes) -> Expense:
@@ -132,12 +151,18 @@ class Group:
         expense = replace(self._active_expense(id), **changes)
         self._check_expense(expense)
         self._expenses[id] = expense
+        self._record(
+            events.ExpenseUpdated(
+                group_id=self._id, expense_id=id, changed_fields=frozenset(changes), by=by
+            )
+        )
         return expense
 
     def remove_expense(self, id: ExpenseId, *, by: UserId, at: datetime) -> None:
         self._check_writable()
         self._check_member(by)
         self._expenses[id] = replace(self._active_expense(id), deleted_at=at)
+        self._record(events.ExpenseRemoved(group_id=self._id, expense_id=id, by=by))
 
     def record_payment(
         self,
@@ -157,12 +182,23 @@ class Group:
         self._check_member(debtor)
         self._check_member(creditor)
         self._payments[id] = payment
+        self._record(
+            events.PaymentRecorded(
+                group_id=self._id,
+                payment_id=id,
+                debtor=debtor,
+                creditor=creditor,
+                amount=amount,
+                by=by,
+            )
+        )
         return payment
 
     def archive(self, *, by: UserId) -> None:
         self._check_writable()
         self._check_admin(by)
         self._status = GroupStatus.ARCHIVED
+        self._record(events.GroupArchived(group_id=self._id, by=by))
 
     def balances(self) -> Balances:
         """One balance per active member.
@@ -186,6 +222,14 @@ class Group:
 
     def active_expenses(self) -> Iterator[Expense]:
         return (expense for expense in self._expenses.values() if expense.is_active())
+
+    def pull_events(self) -> list[events.DomainEvent]:
+        """Hand over the recorded events and forget them, so each is published once."""
+        pulled, self._events = self._events, []
+        return pulled
+
+    def _record(self, event: events.DomainEvent) -> None:
+        self._events.append(event)
 
     def _check_writable(self) -> None:
         if self._status is GroupStatus.ARCHIVED:
