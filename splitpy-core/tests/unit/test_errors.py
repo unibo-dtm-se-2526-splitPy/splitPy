@@ -16,6 +16,7 @@ from splitpy_core.domain.errors import (
     InvalidPayment,
     MemberHasNonZeroBalance,
     MembershipError,
+    NegativeShare,
     NonPositiveAmount,
     NotAMember,
     NotAnAdministrator,
@@ -32,6 +33,7 @@ HIERARCHY = {
     SplitDoesNotMatchAmount: SplitError,
     PercentagesDoNotSumTo100: SplitError,
     EmptyParticipantSet: SplitError,
+    NegativeShare: SplitError,
     MembershipError: DomainError,
     NotAMember: MembershipError,
     AlreadyAMember: MembershipError,
@@ -83,6 +85,7 @@ def test_error_codes_are_unique():
 def test_error_code_is_stable():
     assert SplitDoesNotMatchAmount.code == "SPLIT_DOES_NOT_MATCH_AMOUNT"
     assert PercentagesDoNotSumTo100.code == "PERCENTAGES_DO_NOT_SUM_TO_100"
+    assert NegativeShare.code == "NEGATIVE_SHARE"
     assert GroupNotFound.code == "GROUP_NOT_FOUND"
 
 
