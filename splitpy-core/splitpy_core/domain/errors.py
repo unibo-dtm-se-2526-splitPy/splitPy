@@ -55,6 +55,10 @@ class NotAnAdministrator(MembershipError):
     code = "NOT_AN_ADMINISTRATOR"
 
 
+class AdminSuccessorRequired(MembershipError):
+    code = "ADMIN_SUCCESSOR_REQUIRED"
+
+
 class GroupArchived(DomainError):
     code = "GROUP_ARCHIVED"
 

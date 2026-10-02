@@ -12,7 +12,7 @@ class Role(StrEnum):
     MEMBER = "MEMBER"
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Member:
     user_id: UserId
     role: Role

@@ -10,7 +10,7 @@ from splitpy_core.domain.money import Money
 from splitpy_core.domain.split import Shares, SplitStrategy
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Expense:
     id: ExpenseId
     description: str
