@@ -16,8 +16,15 @@ packages = [{ include = "splitpy_core" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=splitpy_core --cov-report=term-missing --cov-fail-under=70"
 
 [tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.isort]
+known-first-party = ["splitpy_core"]
+
+[tool.black]
 line-length = 100
 
 [build-system]
