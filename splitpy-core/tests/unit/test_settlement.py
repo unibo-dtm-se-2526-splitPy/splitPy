@@ -1,24 +1,11 @@
-from decimal import Decimal
-from uuid import UUID
+"""Settlement plan: the largest debtor pays the largest creditor until every balance is zero."""
 
 import pytest
+from support import ALICE, BOB, CAROL, DAVE, eur
 
 from splitpy_core.domain.balances import Balances
 from splitpy_core.domain.errors import NonPositiveAmount
-from splitpy_core.domain.ids import UserId
-from splitpy_core.domain.money import Currency, Money
 from splitpy_core.domain.settlement import SettlementPlan, SettlementService, Transfer
-
-EUR = Currency("EUR")
-
-ALICE = UserId(UUID(int=1))
-BOB = UserId(UUID(int=2))
-CAROL = UserId(UUID(int=3))
-DAVE = UserId(UUID(int=4))
-
-
-def eur(amount: str) -> Money:
-    return Money.from_decimal(Decimal(amount), EUR)
 
 
 def plan(**nets: str) -> SettlementPlan:
@@ -27,7 +14,7 @@ def plan(**nets: str) -> SettlementPlan:
 
 
 class TestTransfer:
-    @pytest.mark.parametrize("amount", ["0", "-5.00"])
+    @pytest.mark.parametrize("amount", ["0.00", "-5.00"])
     def test_amount_must_be_positive(self, amount):
         with pytest.raises(NonPositiveAmount):
             Transfer(debtor=BOB, creditor=ALICE, amount=eur(amount))
@@ -35,10 +22,10 @@ class TestTransfer:
 
 class TestSettlementService:
     def test_rf11_settled_balances_produce_an_empty_plan(self):
-        assert plan(alice="0", bob="0", carol="0").transfers == ()
+        assert plan(alice="0.00", bob="0.00", carol="0.00").transfers == ()
 
     def test_rf11_single_debtor_pays_single_creditor(self):
-        assert plan(alice="12.50", bob="-12.50", carol="0").transfers == (
+        assert plan(alice="12.50", bob="-12.50", carol="0.00").transfers == (
             Transfer(debtor=BOB, creditor=ALICE, amount=eur("12.50")),
         )
 

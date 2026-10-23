@@ -1,3 +1,5 @@
+"""Domain errors: the designed hierarchy, each class with a stable code."""
+
 import re
 
 import pytest
@@ -65,44 +67,40 @@ def _defined_error_classes():
     }
 
 
-@pytest.mark.parametrize(("error", "parent"), HIERARCHY.items())
-def test_error_has_expected_direct_parent(error, parent):
-    assert error.__bases__ == (parent,)
+class TestHierarchy:
+    @pytest.mark.parametrize(("error", "parent"), HIERARCHY.items())
+    def test_error_has_expected_direct_parent(self, error, parent):
+        assert error.__bases__ == (parent,)
+
+    def test_domain_error_is_an_exception(self):
+        assert issubclass(DomainError, Exception)
+
+    def test_module_defines_exactly_the_designed_hierarchy(self):
+        assert _defined_error_classes() == set(ALL_ERRORS)
+
+    def test_specific_error_is_caught_by_its_family(self):
+        with pytest.raises(SplitError):
+            raise PercentagesDoNotSumTo100("basis points sum to 9999, not 10000")
 
 
-def test_domain_error_is_an_exception():
-    assert issubclass(DomainError, Exception)
+class TestCodes:
+    @pytest.mark.parametrize("error", ALL_ERRORS)
+    def test_error_code_is_upper_snake_case(self, error):
+        assert re.fullmatch(r"[A-Z][A-Z0-9]*(_[A-Z0-9]+)*", error.code)
 
+    def test_error_codes_are_unique(self):
+        codes = [error.code for error in ALL_ERRORS]
+        assert len(codes) == len(set(codes))
 
-def test_module_defines_exactly_the_designed_hierarchy():
-    assert _defined_error_classes() == set(ALL_ERRORS)
+    def test_error_code_is_stable(self):
+        assert SplitDoesNotMatchAmount.code == "SPLIT_DOES_NOT_MATCH_AMOUNT"
+        assert PercentagesDoNotSumTo100.code == "PERCENTAGES_DO_NOT_SUM_TO_100"
+        assert NegativeShare.code == "NEGATIVE_SHARE"
+        assert GroupNotFound.code == "GROUP_NOT_FOUND"
+        assert SubCentAmount.code == "SUB_CENT_AMOUNT"
+        assert UnsupportedCurrency.code == "UNSUPPORTED_CURRENCY"
 
-
-@pytest.mark.parametrize("error", ALL_ERRORS)
-def test_error_code_is_upper_snake_case(error):
-    assert re.fullmatch(r"[A-Z][A-Z0-9]*(_[A-Z0-9]+)*", error.code)
-
-
-def test_error_codes_are_unique():
-    codes = [error.code for error in ALL_ERRORS]
-    assert len(codes) == len(set(codes))
-
-
-def test_error_code_is_stable():
-    assert SplitDoesNotMatchAmount.code == "SPLIT_DOES_NOT_MATCH_AMOUNT"
-    assert PercentagesDoNotSumTo100.code == "PERCENTAGES_DO_NOT_SUM_TO_100"
-    assert NegativeShare.code == "NEGATIVE_SHARE"
-    assert GroupNotFound.code == "GROUP_NOT_FOUND"
-    assert SubCentAmount.code == "SUB_CENT_AMOUNT"
-    assert UnsupportedCurrency.code == "UNSUPPORTED_CURRENCY"
-
-
-def test_error_instance_exposes_code_and_message():
-    error = CurrencyMismatch("EUR and USD cannot be added")
-    assert error.code == "CURRENCY_MISMATCH"
-    assert str(error) == "EUR and USD cannot be added"
-
-
-def test_specific_error_is_caught_by_its_family():
-    with pytest.raises(SplitError):
-        raise PercentagesDoNotSumTo100("sum is 9999 basis points")
+    def test_error_instance_exposes_code_and_message(self):
+        error = CurrencyMismatch("cannot combine EUR with USD")
+        assert error.code == "CURRENCY_MISMATCH"
+        assert str(error) == "cannot combine EUR with USD"

@@ -67,7 +67,7 @@ class ExactSplit:
         object.__setattr__(self, "amounts", MappingProxyType(dict(self.amounts)))
         if not self.amounts:
             raise EmptyParticipantSet("an exact split needs at least one participant")
-        if any(share.cents < 0 for share in self.amounts.values()):
+        if any(share.is_negative() for share in self.amounts.values()):
             raise NegativeShare("an exact share cannot be negative")
 
     @property

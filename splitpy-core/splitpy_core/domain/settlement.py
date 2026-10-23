@@ -15,7 +15,7 @@ class Transfer:
     amount: Money
 
     def __post_init__(self) -> None:
-        if self.amount.cents <= 0:
+        if not self.amount.is_positive():
             raise NonPositiveAmount(f"a transfer amount must be positive, got {self.amount.cents}")
 
 
@@ -34,10 +34,10 @@ class SettlementService:
         NP-hard, and the greedy runs in O(N log N).
         """
         debtors = _by_amount_desc(
-            {m: -net for m, net in balances.by_member.items() if net.cents < 0}
+            {m: -net for m, net in balances.by_member.items() if net.is_negative()}
         )
         creditors = _by_amount_desc(
-            {m: net for m, net in balances.by_member.items() if net.cents > 0}
+            {m: net for m, net in balances.by_member.items() if net.is_positive()}
         )
         transfers = []
         d = c = 0
