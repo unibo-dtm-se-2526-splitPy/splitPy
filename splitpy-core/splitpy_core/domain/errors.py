@@ -15,6 +15,14 @@ class NonPositiveAmount(DomainError):
     code = "NON_POSITIVE_AMOUNT"
 
 
+class SubCentAmount(DomainError):
+    code = "SUB_CENT_AMOUNT"
+
+
+class UnsupportedCurrency(DomainError):
+    code = "UNSUPPORTED_CURRENCY"
+
+
 class SplitError(DomainError):
     code = "SPLIT_ERROR"
 

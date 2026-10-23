@@ -4,12 +4,18 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Self
 
-from splitpy_core.domain.errors import CurrencyMismatch
+from splitpy_core.domain.errors import CurrencyMismatch, SubCentAmount, UnsupportedCurrency
+
+SUPPORTED_CURRENCIES = frozenset({"EUR", "USD", "GBP"})
 
 
 @dataclass(frozen=True, slots=True)
 class Currency:
     code: str
+
+    def __post_init__(self) -> None:
+        if self.code not in SUPPORTED_CURRENCIES:
+            raise UnsupportedCurrency(f"{self.code!r} is not one of {sorted(SUPPORTED_CURRENCIES)}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +25,10 @@ class Money:
 
     @classmethod
     def from_decimal(cls, amount: Decimal, currency: Currency) -> Self:
-        return cls(int(amount.scaleb(2)), currency)
+        cents = amount.scaleb(2)
+        if cents != cents.to_integral_value():
+            raise SubCentAmount(f"{amount} is not a whole number of cents")
+        return cls(int(cents), currency)
 
     @classmethod
     def zero(cls, currency: Currency) -> Self:

@@ -161,7 +161,10 @@ class Group:
     def remove_expense(self, id: ExpenseId, *, by: UserId, at: datetime) -> None:
         self._check_writable()
         self._check_member(by)
-        self._expenses[id] = replace(self._active_expense(id), deleted_at=at)
+        expense = self._active_expense(id)
+        # Dropping it would change the balance of a former member, who left at zero (I-05).
+        self._check_expense(expense)
+        self._expenses[id] = replace(expense, deleted_at=at)
         self._record(events.ExpenseRemoved(group_id=self._id, expense_id=id, by=by))
 
     def record_payment(
