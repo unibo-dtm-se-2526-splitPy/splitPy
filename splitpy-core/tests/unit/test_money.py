@@ -62,7 +62,7 @@ class TestMoneyArithmetic:
 
 
 class TestMoneyAllocate:
-    """Scenari 1-2 del piano di test (13 · Piano di test, Notion)."""
+    """Scenari 1-2 del piano di test."""
 
     def test_scenario1_ten_euros_among_three_gives_334_333_333(self):
         shares = Money.from_decimal(Decimal("10.00"), EUR).allocate([1, 1, 1])
