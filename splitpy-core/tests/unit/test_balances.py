@@ -2,6 +2,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
+import pytest
+
 from splitpy_core.domain.balances import Balances
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.expense import Expense
@@ -81,3 +83,14 @@ class TestBalancesQueries:
 
     def test_is_not_settled_while_someone_owes(self):
         assert not compute(expenses=[expense("30.00", paid_by=ALICE)]).is_settled()
+
+    def test_i02_changing_the_source_dict_does_not_change_the_balances(self):
+        source = {ALICE: eur("10.00"), BOB: eur("-10.00")}
+        balances = Balances(source)
+        source[BOB] = eur("0.00")
+        assert balances.debtors() == [BOB]
+
+    def test_i02_balances_cannot_be_changed_in_place(self):
+        balances = compute(expenses=[expense("30.00", paid_by=ALICE)])
+        with pytest.raises(TypeError):
+            balances.by_member[ALICE] = eur("0.00")

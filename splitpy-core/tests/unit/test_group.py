@@ -196,6 +196,17 @@ class TestEncapsulation:
         with pytest.raises(AttributeError):
             founder.role = Role.MEMBER
 
+    def test_i01_split_dict_changed_after_registration_does_not_change_the_expense(self):
+        group = new_group()
+        amounts = {ALICE: eur("20.00"), BOB: eur("10.00")}
+        register_dinner(group, split=ExactSplit(amounts))
+        amounts[BOB] = eur("99.00")
+        assert group.balances().by_member == {
+            ALICE: eur("10.00"),
+            BOB: eur("-10.00"),
+            CAROL: eur("0.00"),
+        }
+
 
 class TestRegisterExpense:
     def test_rf06_registered_expense_is_listed_as_active(self):
@@ -338,6 +349,17 @@ class TestRemoveExpense:
         register_dinner(group)
         with pytest.raises(NotAMember):
             group.remove_expense(EXPENSE_ID, by=DAVE, at=T2)
+
+    def test_i02_expense_of_a_former_member_cannot_be_removed(self):
+        # Bob settles and leaves; dropping the dinner would leave him owed 10.00 while gone.
+        group = new_group()
+        register_dinner(group)
+        group.record_payment(PAYMENT_ID, BOB, ALICE, eur("10.00"), DAY, by=BOB)
+        group.remove_member(BOB, by=ALICE, at=T2)
+        with pytest.raises(NotAMember):
+            group.remove_expense(EXPENSE_ID, by=ALICE, at=T2)
+        assert sum(group.balances().by_member.values(), eur("0.00")) == eur("0.00")
+        assert [expense.id for expense in group.active_expenses()] == [EXPENSE_ID]
 
 
 class TestRecordPayment:

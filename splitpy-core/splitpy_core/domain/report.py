@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.date_range import DateRange
@@ -16,6 +17,10 @@ class SpendingReport:
     total: Money
     by_category: Mapping[Category, Money]
     by_member: Mapping[UserId, Money]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "by_category", MappingProxyType(dict(self.by_category)))
+        object.__setattr__(self, "by_member", MappingProxyType(dict(self.by_member)))
 
 
 class ReportService:

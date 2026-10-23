@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Self
 
 from splitpy_core.domain.expense import Expense
@@ -13,6 +14,9 @@ from splitpy_core.domain.payment import Payment
 @dataclass(frozen=True, slots=True)
 class Balances:
     by_member: Mapping[UserId, Money]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "by_member", MappingProxyType(dict(self.by_member)))
 
     @classmethod
     def compute(

@@ -25,11 +25,15 @@ from splitpy_core.domain.errors import (
     PercentagesDoNotSumTo100,
     SplitDoesNotMatchAmount,
     SplitError,
+    SubCentAmount,
+    UnsupportedCurrency,
 )
 
 HIERARCHY = {
     CurrencyMismatch: DomainError,
     NonPositiveAmount: DomainError,
+    SubCentAmount: DomainError,
+    UnsupportedCurrency: DomainError,
     SplitError: DomainError,
     SplitDoesNotMatchAmount: SplitError,
     PercentagesDoNotSumTo100: SplitError,
@@ -89,6 +93,8 @@ def test_error_code_is_stable():
     assert PercentagesDoNotSumTo100.code == "PERCENTAGES_DO_NOT_SUM_TO_100"
     assert NegativeShare.code == "NEGATIVE_SHARE"
     assert GroupNotFound.code == "GROUP_NOT_FOUND"
+    assert SubCentAmount.code == "SUB_CENT_AMOUNT"
+    assert UnsupportedCurrency.code == "UNSUPPORTED_CURRENCY"
 
 
 def test_error_instance_exposes_code_and_message():

@@ -2,6 +2,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
+import pytest
+
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.expense import Expense
@@ -107,3 +109,9 @@ class TestReportService:
         spending = report([expense(1, "30.00")], [payment])
         assert spending.total == eur("30.00")
         assert spending.by_member == {ALICE: eur("10.00"), BOB: eur("10.00"), CAROL: eur("10.00")}
+
+    @pytest.mark.parametrize("breakdown", ["by_category", "by_member"])
+    def test_rf13_breakdowns_cannot_be_changed_in_place(self, breakdown):
+        spending = report([expense(1, "30.00")])
+        with pytest.raises(TypeError):
+            getattr(spending, breakdown)[ALICE] = eur("0.00")
