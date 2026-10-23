@@ -29,6 +29,22 @@ known-first-party = ["splitpy_core"]
 [tool.black]
 line-length = 100
 
+# Hexagonal boundaries, checked in CI with `lint-imports`.
+[tool.importlinter]
+root_package = "splitpy_core"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The core depends on no framework and not on the app"
+type = "forbidden"
+source_modules = ["splitpy_core"]
+forbidden_modules = ["fastapi", "sqlalchemy", "pydantic", "splitpy_app"]
+
+[[tool.importlinter.contracts]]
+name = "Ports build on the domain, never the reverse"
+type = "layers"
+layers = ["splitpy_core.ports", "splitpy_core.domain"]
+
 [tool.semantic_release]
 tag_format = "core-v{version}"
 version_toml = ["pyproject.toml:project.version"]
@@ -54,5 +70,6 @@ dev = [
     "pytest-cov (>=7.1.0,<8.0.0)",
     "hypothesis (>=6.165.2,<7.0.0)",
     "ruff (>=0.16.1,<0.17.0)",
-    "black (>=26.5.1,<27.0.0)"
+    "black (>=26.5.1,<27.0.0)",
+    "import-linter (>=2.15,<3.0)"
 ]
