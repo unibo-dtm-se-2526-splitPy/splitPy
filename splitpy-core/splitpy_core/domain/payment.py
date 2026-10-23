@@ -20,5 +20,5 @@ class Payment:
     def __post_init__(self) -> None:
         if self.debtor == self.creditor:
             raise InvalidPayment("debtor and creditor must be different members")
-        if self.amount.cents <= 0:
+        if not self.amount.is_positive():
             raise InvalidPayment(f"a payment amount must be positive, got {self.amount.cents}")

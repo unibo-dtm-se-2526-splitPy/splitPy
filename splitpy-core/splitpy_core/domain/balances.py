@@ -44,10 +44,10 @@ class Balances:
         return cls(net)
 
     def debtors(self) -> list[UserId]:
-        return sorted(member for member, net in self.by_member.items() if net.cents < 0)
+        return sorted(member for member, net in self.by_member.items() if net.is_negative())
 
     def creditors(self) -> list[UserId]:
-        return sorted(member for member, net in self.by_member.items() if net.cents > 0)
+        return sorted(member for member, net in self.by_member.items() if net.is_positive())
 
     def is_settled(self) -> bool:
         return all(net.is_zero() for net in self.by_member.values())

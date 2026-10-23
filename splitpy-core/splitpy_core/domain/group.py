@@ -141,7 +141,7 @@ class Group:
         )
         return expense
 
-    def update_expense(self, id: ExpenseId, *, by: UserId, **changes) -> Expense:
+    def update_expense(self, id: ExpenseId, *, by: UserId, **changes: object) -> Expense:
         self._check_writable()
         self._check_member(by)
         unknown = changes.keys() - EDITABLE_EXPENSE_FIELDS
@@ -253,7 +253,9 @@ class Group:
 
     def _check_currency(self, amount: Money) -> None:
         if amount.currency != self._currency:
-            raise CurrencyMismatch(f"{amount.currency.code} != {self._currency.code}")
+            raise CurrencyMismatch(
+                f"amount is in {amount.currency.code}, the group uses {self._currency.code}"
+            )
 
     def _check_expense(self, expense: Expense) -> None:
         self._check_currency(expense.amount)

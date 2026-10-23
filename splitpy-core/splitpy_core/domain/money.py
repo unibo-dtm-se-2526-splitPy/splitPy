@@ -15,7 +15,7 @@ class Currency:
 
     def __post_init__(self) -> None:
         if self.code not in SUPPORTED_CURRENCIES:
-            raise UnsupportedCurrency(f"{self.code!r} is not one of {sorted(SUPPORTED_CURRENCIES)}")
+            raise UnsupportedCurrency(f"{self.code} is not a supported currency")
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +36,12 @@ class Money:
 
     def is_zero(self) -> bool:
         return self.cents == 0
+
+    def is_positive(self) -> bool:
+        return self.cents > 0
+
+    def is_negative(self) -> bool:
+        return self.cents < 0
 
     def __add__(self, other: Self) -> Self:
         self._check_same_currency(other)
@@ -61,4 +67,6 @@ class Money:
 
     def _check_same_currency(self, other: Self) -> None:
         if self.currency != other.currency:
-            raise CurrencyMismatch(f"{self.currency.code} != {other.currency.code}")
+            raise CurrencyMismatch(
+                f"cannot combine {self.currency.code} with {other.currency.code}"
+            )
