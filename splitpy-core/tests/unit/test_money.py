@@ -2,16 +2,35 @@ from decimal import Decimal
 
 import pytest
 
-from splitpy_core.domain.errors import CurrencyMismatch
+from splitpy_core.domain.errors import CurrencyMismatch, SubCentAmount, UnsupportedCurrency
 from splitpy_core.domain.money import Currency, Money
 
 EUR = Currency("EUR")
 USD = Currency("USD")
 
 
+class TestCurrency:
+    @pytest.mark.parametrize("code", ["EUR", "USD", "GBP"])
+    def test_supported_codes_are_accepted(self, code):
+        assert Currency(code).code == code
+
+    @pytest.mark.parametrize("code", ["XYZ", "eur", ""])
+    def test_unsupported_code_raises_unsupported_currency(self, code):
+        with pytest.raises(UnsupportedCurrency):
+            Currency(code)
+
+
 class TestMoneyArithmetic:
     def test_from_decimal_converts_to_cents(self):
         assert Money.from_decimal(Decimal("12.34"), EUR).cents == 1234
+
+    def test_from_decimal_accepts_trailing_zeros_beyond_cents(self):
+        assert Money.from_decimal(Decimal("1.500"), EUR).cents == 150
+
+    @pytest.mark.parametrize("amount", ["1.999", "0.001", "-2.005"])
+    def test_from_decimal_rejects_fractions_of_a_cent(self, amount):
+        with pytest.raises(SubCentAmount):
+            Money.from_decimal(Decimal(amount), EUR)
 
     def test_zero_has_zero_cents(self):
         assert Money.zero(EUR).cents == 0

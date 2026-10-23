@@ -35,6 +35,17 @@ class TestShares:
         with pytest.raises(EmptyParticipantSet):
             Shares({})
 
+    def test_i01_changing_the_source_dict_does_not_change_the_shares(self):
+        source = {ALICE: eur("1.50"), BOB: eur("2.25")}
+        shares = Shares(source)
+        source[BOB] = eur("99.00")
+        assert shares.total() == eur("3.75")
+
+    def test_i01_shares_cannot_be_changed_in_place(self):
+        shares = Shares({ALICE: eur("1.50")})
+        with pytest.raises(TypeError):
+            shares.by_member[ALICE] = eur("2.00")
+
 
 class TestEqualSplit:
     def test_rf05_equal_split_divides_evenly(self):
@@ -88,6 +99,17 @@ class TestExactSplit:
         with pytest.raises(EmptyParticipantSet):
             ExactSplit({})
 
+    def test_i01_changing_the_source_dict_does_not_change_the_split(self):
+        source = {ALICE: eur("7.00"), BOB: eur("3.00")}
+        split = ExactSplit(source)
+        source[BOB] = eur("99.00")
+        assert split.shares(eur("10.00")).by_member == {ALICE: eur("7.00"), BOB: eur("3.00")}
+
+    def test_i01_amounts_cannot_be_changed_in_place(self):
+        split = ExactSplit({ALICE: eur("10.00")})
+        with pytest.raises(TypeError):
+            split.amounts[ALICE] = eur("20.00")
+
 
 class TestPercentageSplit:
     def test_rf07_percentage_split_follows_basis_points(self):
@@ -122,3 +144,14 @@ class TestPercentageSplit:
     def test_empty_basis_points_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             PercentageSplit({})
+
+    def test_i06_changing_the_source_dict_does_not_change_the_split(self):
+        source = {ALICE: 7_000, BOB: 3_000}
+        split = PercentageSplit(source)
+        source[BOB] = 9_000
+        assert split.shares(eur("10.00")).by_member == {ALICE: eur("7.00"), BOB: eur("3.00")}
+
+    def test_i06_basis_points_cannot_be_changed_in_place(self):
+        split = PercentageSplit({ALICE: 10_000})
+        with pytest.raises(TypeError):
+            split.basis_points[ALICE] = 20_000
