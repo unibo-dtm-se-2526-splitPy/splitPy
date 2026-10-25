@@ -23,6 +23,7 @@ jobs:
       - run: poetry install --no-interaction
       - run: poetry run ruff check .
       - run: poetry run black --check .
+      - run: poetry run lint-imports
       - run: poetry run pytest
 
   app:
