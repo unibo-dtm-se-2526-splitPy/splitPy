@@ -300,6 +300,32 @@ class TestUpdateExpense:
         with pytest.raises(CurrencyMismatch):
             group.update_expense(EXPENSE_ID, by=ALICE, amount=usd("1.00"))
 
+    def test_i02_former_member_cannot_be_dropped_from_the_split(self):
+        # Bob settles and leaves; taking him out of the dinner would leave him owed 10.00.
+        group = new_group()
+        register_dinner(group)
+        group.record_payment(PAYMENT_ID, BOB, ALICE, eur("10.00"), DAY, by=BOB)
+        group.remove_member(BOB, by=ALICE, at=T2)
+        with pytest.raises(NotAMember):
+            group.update_expense(EXPENSE_ID, by=ALICE, split=EqualSplit(frozenset({ALICE, CAROL})))
+        assert sum(group.balances().by_member.values(), eur("0.00")) == eur("0.00")
+        [expense] = group.active_expenses()
+        assert expense.split == EqualSplit(frozenset({ALICE, BOB, CAROL}))
+
+    def test_i02_former_payer_cannot_be_replaced(self):
+        # Bob pays a dinner for Alice and Carol, is paid back and leaves; moving the
+        # payment to Alice would leave him owing 30.00.
+        group = new_group()
+        register_dinner(group, paid_by=BOB, split=EqualSplit(frozenset({ALICE, CAROL})))
+        group.record_payment(payment_id(1), ALICE, BOB, eur("15.00"), DAY, by=ALICE)
+        group.record_payment(payment_id(2), CAROL, BOB, eur("15.00"), DAY, by=CAROL)
+        group.remove_member(BOB, by=ALICE, at=T2)
+        with pytest.raises(NotAMember):
+            group.update_expense(EXPENSE_ID, by=ALICE, paid_by=ALICE)
+        assert sum(group.balances().by_member.values(), eur("0.00")) == eur("0.00")
+        [expense] = group.active_expenses()
+        assert expense.paid_by == BOB
+
     def test_unknown_field_cannot_be_updated(self):
         group = new_group()
         register_dinner(group)
