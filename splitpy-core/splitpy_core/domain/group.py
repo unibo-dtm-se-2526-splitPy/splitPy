@@ -147,8 +147,11 @@ class Group:
         unknown = changes.keys() - EDITABLE_EXPENSE_FIELDS
         if unknown:
             raise TypeError(f"cannot update {', '.join(sorted(unknown))}")
+        current = self._active_expense(id)
+        # Changing it would change the balance of a former member, who left at zero (I-05).
+        self._check_expense(current)
         # replace() builds a new Expense, so a failed check leaves the stored one untouched.
-        expense = replace(self._active_expense(id), **changes)
+        expense = replace(current, **changes)
         self._check_expense(expense)
         self._expenses[id] = expense
         self._record(
