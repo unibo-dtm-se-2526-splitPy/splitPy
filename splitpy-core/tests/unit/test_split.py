@@ -1,7 +1,7 @@
-from decimal import Decimal
-from uuid import UUID
+"""Split strategies divide an amount among participants without losing or creating a cent."""
 
 import pytest
+from support import ALICE, BOB, CAROL, eur, usd
 
 from splitpy_core.domain.errors import (
     CurrencyMismatch,
@@ -10,20 +10,7 @@ from splitpy_core.domain.errors import (
     PercentagesDoNotSumTo100,
     SplitDoesNotMatchAmount,
 )
-from splitpy_core.domain.ids import UserId
-from splitpy_core.domain.money import Currency, Money
 from splitpy_core.domain.split import EqualSplit, ExactSplit, PercentageSplit, Shares
-
-EUR = Currency("EUR")
-USD = Currency("USD")
-
-ALICE = UserId(UUID(int=1))
-BOB = UserId(UUID(int=2))
-CAROL = UserId(UUID(int=3))
-
-
-def eur(amount: str) -> Money:
-    return Money.from_decimal(Decimal(amount), EUR)
 
 
 class TestShares:
@@ -77,13 +64,14 @@ class TestExactSplit:
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("3.00")})
         assert split.participants == frozenset({ALICE, BOB})
 
-    def test_scenario3_amounts_not_matching_total_raise_split_does_not_match_amount(self):
+    def test_i01_amounts_not_matching_total_raise_split_does_not_match_amount(self):
+        # Scenario 3 of the test plan.
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("2.99")})
         with pytest.raises(SplitDoesNotMatchAmount):
             split.shares(eur("10.00"))
 
     def test_amounts_in_other_currency_raise_currency_mismatch(self):
-        split = ExactSplit({ALICE: Money.from_decimal(Decimal("10.00"), USD)})
+        split = ExactSplit({ALICE: usd("10.00")})
         with pytest.raises(CurrencyMismatch):
             split.shares(eur("10.00"))
 
@@ -129,7 +117,8 @@ class TestPercentageSplit:
         split = PercentageSplit({ALICE: 5_000, BOB: 5_000})
         assert split.participants == frozenset({ALICE, BOB})
 
-    def test_scenario4_percentages_summing_to_9999_raise_percentages_do_not_sum_to_100(self):
+    def test_i06_percentages_summing_to_9999_raise_percentages_do_not_sum_to_100(self):
+        # Scenario 4 of the test plan.
         with pytest.raises(PercentagesDoNotSumTo100):
             PercentageSplit({ALICE: 5_000, BOB: 4_999})
 

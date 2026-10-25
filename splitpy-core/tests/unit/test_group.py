@@ -1,8 +1,27 @@
-from datetime import UTC, date, datetime
-from decimal import Decimal
-from uuid import UUID
+"""The Group aggregate root: membership, expenses, payments and archiving go through it."""
+
+from dataclasses import FrozenInstanceError
 
 import pytest
+from support import (
+    ALICE,
+    BOB,
+    CAROL,
+    DAVE,
+    DAY,
+    EUR,
+    EXPENSE_ID,
+    GROUP_ID,
+    PAYMENT_ID,
+    T0,
+    T1,
+    T2,
+    eur,
+    expense_id,
+    payment_id,
+    register_dinner,
+    usd,
+)
 
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.errors import (
@@ -19,32 +38,9 @@ from splitpy_core.domain.errors import (
     SplitDoesNotMatchAmount,
 )
 from splitpy_core.domain.group import Group, GroupStatus
-from splitpy_core.domain.ids import ExpenseId, GroupId, PaymentId, UserId
+from splitpy_core.domain.ids import UserId
 from splitpy_core.domain.member import Role
-from splitpy_core.domain.money import Currency, Money
 from splitpy_core.domain.split import EqualSplit, ExactSplit
-
-EUR = Currency("EUR")
-USD = Currency("USD")
-
-ALICE = UserId(UUID(int=1))
-BOB = UserId(UUID(int=2))
-CAROL = UserId(UUID(int=3))
-DAVE = UserId(UUID(int=4))
-
-GROUP_ID = GroupId(UUID(int=10))
-EXPENSE_ID = ExpenseId(UUID(int=100))
-OTHER_EXPENSE_ID = ExpenseId(UUID(int=101))
-PAYMENT_ID = PaymentId(UUID(int=200))
-
-T0 = datetime(2026, 1, 1, tzinfo=UTC)
-T1 = datetime(2026, 1, 2, tzinfo=UTC)
-T2 = datetime(2026, 1, 3, tzinfo=UTC)
-DAY = date(2026, 1, 2)
-
-
-def eur(amount: str) -> Money:
-    return Money.from_decimal(Decimal(amount), EUR)
 
 
 def new_group() -> Group:
@@ -53,19 +49,6 @@ def new_group() -> Group:
     group.add_member(BOB, Role.MEMBER, by=ALICE, at=T1)
     group.add_member(CAROL, Role.MEMBER, by=ALICE, at=T1)
     return group
-
-
-def register_dinner(group: Group, amount: str = "30.00", paid_by: UserId = ALICE, split=None):
-    return group.register_expense(
-        EXPENSE_ID,
-        "Dinner",
-        eur(amount),
-        paid_by,
-        split or EqualSplit(frozenset({ALICE, BOB, CAROL})),
-        Category.FOOD,
-        DAY,
-        by=paid_by,
-    )
 
 
 def active_ids(group: Group) -> set[UserId]:
@@ -129,7 +112,7 @@ class TestMembership:
             group.remove_member(DAVE, by=ALICE, at=T2)
 
     def test_rf05_cannot_remove_member_with_non_zero_balance(self):
-        # Scenario 8: Bob owes 10.00 to Alice.
+        # Scenario 8 of the test plan: Bob owes 10.00 to Alice.
         group = new_group()
         register_dinner(group)
         with pytest.raises(MemberHasNonZeroBalance):
@@ -187,13 +170,13 @@ class TestEncapsulation:
     def test_returned_expense_cannot_be_changed_from_outside(self):
         group = new_group()
         expense = register_dinner(group)
-        with pytest.raises(AttributeError):
+        with pytest.raises(FrozenInstanceError):
             expense.deleted_at = T2
         assert list(group.active_expenses()) == [expense]
 
     def test_returned_member_cannot_be_changed_from_outside(self):
         [founder] = Group.create(GROUP_ID, "Flat", EUR, founder=ALICE, at=T0).active_members()
-        with pytest.raises(AttributeError):
+        with pytest.raises(FrozenInstanceError):
             founder.role = Role.MEMBER
 
     def test_i01_split_dict_changed_after_registration_does_not_change_the_expense(self):
@@ -224,7 +207,7 @@ class TestRegisterExpense:
         )
 
     def test_rf06_payer_not_a_member_raises_not_a_member(self):
-        # Scenario 9.
+        # Scenario 9 of the test plan.
         group = new_group()
         with pytest.raises(NotAMember):
             group.register_expense(
@@ -247,7 +230,7 @@ class TestRegisterExpense:
         group = new_group()
         group.remove_member(CAROL, by=ALICE, at=T2)
         with pytest.raises(NotAMember):
-            register_dinner(group)
+            register_dinner(group, split=EqualSplit(frozenset({ALICE, BOB, CAROL})))
 
     def test_i03_non_member_cannot_register_expenses(self):
         group = new_group()
@@ -269,7 +252,7 @@ class TestRegisterExpense:
             group.register_expense(
                 EXPENSE_ID,
                 "Dinner",
-                Money(3000, USD),
+                usd("30.00"),
                 ALICE,
                 EqualSplit(frozenset({ALICE, BOB})),
                 Category.FOOD,
@@ -315,7 +298,7 @@ class TestUpdateExpense:
         group = new_group()
         register_dinner(group)
         with pytest.raises(CurrencyMismatch):
-            group.update_expense(EXPENSE_ID, by=ALICE, amount=Money(100, USD))
+            group.update_expense(EXPENSE_ID, by=ALICE, amount=usd("1.00"))
 
     def test_unknown_field_cannot_be_updated(self):
         group = new_group()
@@ -326,7 +309,7 @@ class TestUpdateExpense:
     def test_updating_a_missing_expense_raises_expense_not_found(self):
         group = new_group()
         with pytest.raises(ExpenseNotFound):
-            group.update_expense(OTHER_EXPENSE_ID, by=ALICE, amount=eur("1.00"))
+            group.update_expense(expense_id(1), by=ALICE, amount=eur("1.00"))
 
 
 class TestRemoveExpense:
@@ -378,7 +361,7 @@ class TestRecordPayment:
     def test_i04_payment_in_another_currency_raises_currency_mismatch(self):
         group = new_group()
         with pytest.raises(CurrencyMismatch):
-            group.record_payment(PAYMENT_ID, BOB, ALICE, Money(1000, USD), DAY, by=BOB)
+            group.record_payment(PAYMENT_ID, BOB, ALICE, usd("10.00"), DAY, by=BOB)
 
     def test_i08_payment_to_oneself_raises_invalid_payment(self):
         group = new_group()
@@ -400,7 +383,7 @@ class TestBalances:
         group = new_group()
         register_dinner(group, paid_by=CAROL)
         group.record_payment(PAYMENT_ID, ALICE, CAROL, eur("10.00"), DAY, by=ALICE)
-        group.record_payment(PaymentId(UUID(int=201)), BOB, CAROL, eur("10.00"), DAY, by=BOB)
+        group.record_payment(payment_id(1), BOB, CAROL, eur("10.00"), DAY, by=BOB)
         group.remove_member(CAROL, by=ALICE, at=T2)
         assert group.balances().by_member == {ALICE: eur("0.00"), BOB: eur("0.00")}
 

@@ -18,6 +18,7 @@ packages = [{ include = "splitpy_core" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "--cov=splitpy_core --cov-report=term-missing --cov-fail-under=70"
 
 [tool.ruff]

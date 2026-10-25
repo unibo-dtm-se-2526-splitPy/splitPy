@@ -1,5 +1,6 @@
 """Spending report: how much each member consumed in a period, not who owes whom."""
 
+from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -31,16 +32,15 @@ class ReportService:
         A member's figure is the sum of their shares, so both breakdowns add up to the total.
         Payments are left out: a reimbursement settles debt, it is not consumption.
         """
-        total = Money.zero(group.currency)
-        by_category: dict[Category, Money] = {}
-        by_member: dict[UserId, Money] = {}
+        zero = Money.zero(group.currency)
+        total = zero
+        by_category: defaultdict[Category, Money] = defaultdict(lambda: zero)
+        by_member: defaultdict[UserId, Money] = defaultdict(lambda: zero)
         for expense in group.active_expenses():
             if not period.contains(expense.occurred_on):
                 continue
             total += expense.amount
-            by_category[expense.category] = (
-                by_category.get(expense.category, Money.zero(group.currency)) + expense.amount
-            )
+            by_category[expense.category] += expense.amount
             for member, share in expense.shares().by_member.items():
-                by_member[member] = by_member.get(member, Money.zero(group.currency)) + share
+                by_member[member] += share
         return SpendingReport(period, total, by_category, by_member)
