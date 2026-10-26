@@ -1,58 +1,52 @@
 """Scenario 10 of the test plan: total by category = total by member = grand total."""
 
+from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta
-from uuid import UUID
 
 from hypothesis import given
 from hypothesis import strategies as st
+from strategies import cents, members
+from support import EUR, GROUP_ID, T0, expense_id
 
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.group import Group
-from splitpy_core.domain.ids import ExpenseId, GroupId, UserId
 from splitpy_core.domain.member import Member, Role
-from splitpy_core.domain.money import Currency, Money
+from splitpy_core.domain.money import Money
 from splitpy_core.domain.report import ReportService
 from splitpy_core.domain.split import EqualSplit
 
-EUR = Currency("EUR")
-JOINED = datetime(2026, 1, 1, tzinfo=UTC)
 FIRST_DAY = date(2026, 3, 1)
+# Deleted after every generated expense, so the deletion date never falls inside the period.
+DELETED_AT = datetime(2026, 6, 1, tzinfo=UTC)
 
-cents = st.integers(min_value=1, max_value=10**7)
 days = st.integers(min_value=0, max_value=60).map(lambda n: FIRST_DAY + timedelta(days=n))
 
 
 @st.composite
 def groups(draw):
-    members = sorted(
-        draw(
-            st.sets(
-                st.integers(0, 1_000).map(lambda n: UserId(UUID(int=n))), min_size=2, max_size=8
-            )
-        )
-    )
+    users = draw(members)
     expenses = [
         Expense(
-            id=ExpenseId(UUID(int=i)),
+            id=expense_id(i),
             description="generated",
             amount=Money(draw(cents), EUR),
-            paid_by=draw(st.sampled_from(members)),
+            paid_by=draw(st.sampled_from(users)),
             split=EqualSplit(
-                frozenset(draw(st.lists(st.sampled_from(members), min_size=1, unique=True)))
+                frozenset(draw(st.lists(st.sampled_from(users), min_size=1, unique=True)))
             ),
             category=draw(st.sampled_from(Category)),
             occurred_on=draw(days),
-            deleted_at=datetime(2026, 6, 1, tzinfo=UTC) if draw(st.booleans()) else None,
+            deleted_at=DELETED_AT if draw(st.booleans()) else None,
         )
-        for i in range(draw(st.integers(0, 15)))
+        for i in range(draw(st.integers(min_value=0, max_value=15)))
     ]
     return Group(
-        GroupId(UUID(int=1)),
+        GROUP_ID,
         "generated",
         EUR,
-        [Member(user_id, Role.MEMBER, joined_at=JOINED) for user_id in members],
+        [Member(user_id, Role.MEMBER, joined_at=T0) for user_id in users],
         expenses,
     )
 
@@ -63,7 +57,7 @@ def periods(draw):
     return DateRange(start, end)
 
 
-def total(amounts) -> Money:
+def total(amounts: Iterable[Money]) -> Money:
     return sum(amounts, Money.zero(EUR))
 
 

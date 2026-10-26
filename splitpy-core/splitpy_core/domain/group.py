@@ -141,14 +141,17 @@ class Group:
         )
         return expense
 
-    def update_expense(self, id: ExpenseId, *, by: UserId, **changes) -> Expense:
+    def update_expense(self, id: ExpenseId, *, by: UserId, **changes: object) -> Expense:
         self._check_writable()
         self._check_member(by)
         unknown = changes.keys() - EDITABLE_EXPENSE_FIELDS
         if unknown:
             raise TypeError(f"cannot update {', '.join(sorted(unknown))}")
+        current = self._active_expense(id)
+        # Changing it would change the balance of a former member, who left at zero (I-05).
+        self._check_expense(current)
         # replace() builds a new Expense, so a failed check leaves the stored one untouched.
-        expense = replace(self._active_expense(id), **changes)
+        expense = replace(current, **changes)
         self._check_expense(expense)
         self._expenses[id] = expense
         self._record(
@@ -161,7 +164,10 @@ class Group:
     def remove_expense(self, id: ExpenseId, *, by: UserId, at: datetime) -> None:
         self._check_writable()
         self._check_member(by)
-        self._expenses[id] = replace(self._active_expense(id), deleted_at=at)
+        expense = self._active_expense(id)
+        # Dropping it would change the balance of a former member, who left at zero (I-05).
+        self._check_expense(expense)
+        self._expenses[id] = replace(expense, deleted_at=at)
         self._record(events.ExpenseRemoved(group_id=self._id, expense_id=id, by=by))
 
     def record_payment(
@@ -250,7 +256,9 @@ class Group:
 
     def _check_currency(self, amount: Money) -> None:
         if amount.currency != self._currency:
-            raise CurrencyMismatch(f"{amount.currency.code} != {self._currency.code}")
+            raise CurrencyMismatch(
+                f"amount is in {amount.currency.code}, the group uses {self._currency.code}"
+            )
 
     def _check_expense(self, expense: Expense) -> None:
         self._check_currency(expense.amount)
