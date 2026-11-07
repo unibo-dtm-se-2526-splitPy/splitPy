@@ -22,7 +22,6 @@ class GenerateReport:
         self._uow = uow
 
     def execute(self, *, group_id: GroupId, period: DateRange) -> SpendingReport:
-        # Only the expenses of the period are loaded (RF-13).
         with self._uow:
-            group = self._uow.groups.get_for_period(group_id, period)
+            group = self._uow.groups.get(group_id)
         return ReportService.spending(group, period)
