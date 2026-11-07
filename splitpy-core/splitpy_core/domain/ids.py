@@ -8,17 +8,29 @@ from uuid import UUID
 class UserId:
     value: UUID
 
+    def __str__(self) -> str:
+        return str(self.value)
+
 
 @dataclass(frozen=True, slots=True, order=True)
 class GroupId:
     value: UUID
+
+    def __str__(self) -> str:
+        return str(self.value)
 
 
 @dataclass(frozen=True, slots=True, order=True)
 class ExpenseId:
     value: UUID
 
+    def __str__(self) -> str:
+        return str(self.value)
+
 
 @dataclass(frozen=True, slots=True, order=True)
 class PaymentId:
     value: UUID
+
+    def __str__(self) -> str:
+        return str(self.value)

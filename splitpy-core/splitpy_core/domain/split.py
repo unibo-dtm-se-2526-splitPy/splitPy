@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Protocol
 
 from splitpy_core.domain.errors import (
@@ -22,6 +23,8 @@ class Shares:
     by_member: Mapping[UserId, Money]
 
     def __post_init__(self) -> None:
+        # A read-only copy: changing the caller's dict afterwards cannot break I-01.
+        object.__setattr__(self, "by_member", MappingProxyType(dict(self.by_member)))
         if not self.by_member:
             raise EmptyParticipantSet("shares need at least one participant")
 
@@ -61,9 +64,10 @@ class ExactSplit:
     amounts: Mapping[UserId, Money]
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "amounts", MappingProxyType(dict(self.amounts)))
         if not self.amounts:
             raise EmptyParticipantSet("an exact split needs at least one participant")
-        if any(share.cents < 0 for share in self.amounts.values()):
+        if any(share.is_negative() for share in self.amounts.values()):
             raise NegativeShare("an exact share cannot be negative")
 
     @property
@@ -86,6 +90,7 @@ class PercentageSplit:
     basis_points: Mapping[UserId, int]
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "basis_points", MappingProxyType(dict(self.basis_points)))
         if not self.basis_points:
             raise EmptyParticipantSet("a percentage split needs at least one participant")
         if any(points < 0 for points in self.basis_points.values()):

@@ -1,36 +1,26 @@
 """Domain events of the Group aggregate: the activity feed (RF-15) is built from them."""
 
-from datetime import UTC, date, datetime
-from decimal import Decimal
-from uuid import UUID
-
 import pytest
+from support import (
+    ALICE,
+    BOB,
+    CAROL,
+    DAY,
+    EUR,
+    EXPENSE_ID,
+    GROUP_ID,
+    PAYMENT_ID,
+    T0,
+    T1,
+    eur,
+    register_dinner,
+)
 
 from splitpy_core.domain import events
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.errors import NotAnAdministrator
 from splitpy_core.domain.group import Group
-from splitpy_core.domain.ids import ExpenseId, GroupId, PaymentId, UserId
 from splitpy_core.domain.member import Member, Role
-from splitpy_core.domain.money import Currency, Money
-from splitpy_core.domain.split import EqualSplit
-
-EUR = Currency("EUR")
-
-ALICE = UserId(UUID(int=1))
-BOB = UserId(UUID(int=2))
-
-GROUP_ID = GroupId(UUID(int=10))
-EXPENSE_ID = ExpenseId(UUID(int=100))
-PAYMENT_ID = PaymentId(UUID(int=200))
-
-T0 = datetime(2026, 1, 1, tzinfo=UTC)
-T1 = datetime(2026, 1, 2, tzinfo=UTC)
-DAY = date(2026, 1, 2)
-
-
-def eur(amount: str) -> Money:
-    return Money.from_decimal(Decimal(amount), EUR)
 
 
 def group_with_bob() -> Group:
@@ -39,19 +29,6 @@ def group_with_bob() -> Group:
     group.add_member(BOB, Role.MEMBER, by=ALICE, at=T1)
     group.pull_events()
     return group
-
-
-def register_dinner(group: Group) -> None:
-    group.register_expense(
-        EXPENSE_ID,
-        "Dinner",
-        eur("30.00"),
-        ALICE,
-        EqualSplit(frozenset({ALICE, BOB})),
-        Category.FOOD,
-        DAY,
-        by=ALICE,
-    )
 
 
 class TestPullEvents:
@@ -81,7 +58,7 @@ class TestPullEvents:
     def test_a_rejected_command_records_no_event(self):
         group = group_with_bob()
         with pytest.raises(NotAnAdministrator):
-            group.add_member(UserId(UUID(int=3)), Role.MEMBER, by=BOB, at=T1)
+            group.add_member(CAROL, Role.MEMBER, by=BOB, at=T1)
         assert group.pull_events() == []
 
 

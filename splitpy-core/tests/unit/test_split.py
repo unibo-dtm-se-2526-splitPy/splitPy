@@ -1,7 +1,7 @@
-from decimal import Decimal
-from uuid import UUID
+"""Split strategies divide an amount among participants without losing or creating a cent."""
 
 import pytest
+from support import ALICE, BOB, CAROL, eur, usd
 
 from splitpy_core.domain.errors import (
     CurrencyMismatch,
@@ -10,20 +10,7 @@ from splitpy_core.domain.errors import (
     PercentagesDoNotSumTo100,
     SplitDoesNotMatchAmount,
 )
-from splitpy_core.domain.ids import UserId
-from splitpy_core.domain.money import Currency, Money
 from splitpy_core.domain.split import EqualSplit, ExactSplit, PercentageSplit, Shares
-
-EUR = Currency("EUR")
-USD = Currency("USD")
-
-ALICE = UserId(UUID(int=1))
-BOB = UserId(UUID(int=2))
-CAROL = UserId(UUID(int=3))
-
-
-def eur(amount: str) -> Money:
-    return Money.from_decimal(Decimal(amount), EUR)
 
 
 class TestShares:
@@ -34,6 +21,17 @@ class TestShares:
     def test_empty_shares_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             Shares({})
+
+    def test_i01_changing_the_source_dict_does_not_change_the_shares(self):
+        source = {ALICE: eur("1.50"), BOB: eur("2.25")}
+        shares = Shares(source)
+        source[BOB] = eur("99.00")
+        assert shares.total() == eur("3.75")
+
+    def test_i01_shares_cannot_be_changed_in_place(self):
+        shares = Shares({ALICE: eur("1.50")})
+        with pytest.raises(TypeError):
+            shares.by_member[ALICE] = eur("2.00")
 
 
 class TestEqualSplit:
@@ -66,13 +64,14 @@ class TestExactSplit:
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("3.00")})
         assert split.participants == frozenset({ALICE, BOB})
 
-    def test_scenario3_amounts_not_matching_total_raise_split_does_not_match_amount(self):
+    def test_i01_amounts_not_matching_total_raise_split_does_not_match_amount(self):
+        # Scenario 3 of the test plan.
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("2.99")})
         with pytest.raises(SplitDoesNotMatchAmount):
             split.shares(eur("10.00"))
 
     def test_amounts_in_other_currency_raise_currency_mismatch(self):
-        split = ExactSplit({ALICE: Money.from_decimal(Decimal("10.00"), USD)})
+        split = ExactSplit({ALICE: usd("10.00")})
         with pytest.raises(CurrencyMismatch):
             split.shares(eur("10.00"))
 
@@ -87,6 +86,17 @@ class TestExactSplit:
     def test_empty_amounts_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             ExactSplit({})
+
+    def test_i01_changing_the_source_dict_does_not_change_the_split(self):
+        source = {ALICE: eur("7.00"), BOB: eur("3.00")}
+        split = ExactSplit(source)
+        source[BOB] = eur("99.00")
+        assert split.shares(eur("10.00")).by_member == {ALICE: eur("7.00"), BOB: eur("3.00")}
+
+    def test_i01_amounts_cannot_be_changed_in_place(self):
+        split = ExactSplit({ALICE: eur("10.00")})
+        with pytest.raises(TypeError):
+            split.amounts[ALICE] = eur("20.00")
 
 
 class TestPercentageSplit:
@@ -107,7 +117,8 @@ class TestPercentageSplit:
         split = PercentageSplit({ALICE: 5_000, BOB: 5_000})
         assert split.participants == frozenset({ALICE, BOB})
 
-    def test_scenario4_percentages_summing_to_9999_raise_percentages_do_not_sum_to_100(self):
+    def test_i06_percentages_summing_to_9999_raise_percentages_do_not_sum_to_100(self):
+        # Scenario 4 of the test plan.
         with pytest.raises(PercentagesDoNotSumTo100):
             PercentageSplit({ALICE: 5_000, BOB: 4_999})
 
@@ -122,3 +133,14 @@ class TestPercentageSplit:
     def test_empty_basis_points_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             PercentageSplit({})
+
+    def test_i06_changing_the_source_dict_does_not_change_the_split(self):
+        source = {ALICE: 7_000, BOB: 3_000}
+        split = PercentageSplit(source)
+        source[BOB] = 9_000
+        assert split.shares(eur("10.00")).by_member == {ALICE: eur("7.00"), BOB: eur("3.00")}
+
+    def test_i06_basis_points_cannot_be_changed_in_place(self):
+        split = PercentageSplit({ALICE: 10_000})
+        with pytest.raises(TypeError):
+            split.basis_points[ALICE] = 20_000

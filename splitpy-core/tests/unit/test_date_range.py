@@ -1,3 +1,5 @@
+"""A date range includes both extremes and never ends before it starts."""
+
 from datetime import date
 
 import pytest

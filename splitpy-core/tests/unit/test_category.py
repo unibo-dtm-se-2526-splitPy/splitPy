@@ -1,3 +1,5 @@
+"""Expense categories are a closed set of stable values."""
+
 from splitpy_core.domain.category import Category
 
 

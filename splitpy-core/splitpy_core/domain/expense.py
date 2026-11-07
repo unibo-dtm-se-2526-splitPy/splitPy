@@ -22,7 +22,7 @@ class Expense:
     deleted_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if self.amount.cents <= 0:
+        if not self.amount.is_positive():
             raise NonPositiveAmount(f"an expense amount must be positive, got {self.amount.cents}")
         # Computing the shares up front rejects a split that cannot match the amount (I-01).
         self.shares()
