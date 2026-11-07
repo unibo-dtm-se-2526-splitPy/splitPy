@@ -11,46 +11,46 @@ from splitpy_core.domain.money import Currency, Money
 
 class TestCurrency:
     @pytest.mark.parametrize("code", ["EUR", "USD", "GBP"])
-    def test_supported_codes_are_accepted(self, code):
+    def test_rf04_supported_codes_are_accepted(self, code):
         assert Currency(code).code == code
 
     @pytest.mark.parametrize("code", ["XYZ", "eur", ""])
-    def test_unsupported_code_raises_unsupported_currency(self, code):
+    def test_rf04_unsupported_code_raises_unsupported_currency(self, code):
         with pytest.raises(UnsupportedCurrency):
             Currency(code)
 
 
 class TestFromDecimal:
-    def test_from_decimal_converts_to_cents(self):
+    def test_rnf01_from_decimal_converts_to_cents(self):
         assert Money.from_decimal(Decimal("12.34"), EUR).cents == 1234
 
-    def test_from_decimal_accepts_trailing_zeros_beyond_cents(self):
+    def test_rnf01_from_decimal_accepts_trailing_zeros_beyond_cents(self):
         assert Money.from_decimal(Decimal("1.500"), EUR).cents == 150
 
     @pytest.mark.parametrize("amount", ["1.999", "0.001", "-2.005"])
-    def test_from_decimal_rejects_fractions_of_a_cent(self, amount):
+    def test_rnf01_from_decimal_rejects_fractions_of_a_cent(self, amount):
         with pytest.raises(SubCentAmount):
             Money.from_decimal(Decimal(amount), EUR)
 
 
 class TestMoneyArithmetic:
-    def test_zero_has_zero_cents(self):
+    def test_rnf01_zero_has_zero_cents(self):
         assert Money.zero(EUR).cents == 0
 
-    def test_add_sums_cents_in_same_currency(self):
+    def test_rnf01_add_sums_cents_in_same_currency(self):
         assert eur("1.50") + eur("2.25") == eur("3.75")
 
-    def test_subtract_same_currency(self):
+    def test_rnf01_subtract_same_currency(self):
         assert eur("5.00") - eur("1.50") == eur("3.50")
 
-    def test_negate_flips_sign(self):
+    def test_rnf01_negate_flips_sign(self):
         assert (-eur("4.20")).cents == -420
 
-    def test_add_different_currency_raises_currency_mismatch(self):
+    def test_i04_add_different_currency_raises_currency_mismatch(self):
         with pytest.raises(CurrencyMismatch):
             eur("1.00") + usd("1.00")
 
-    def test_subtract_different_currency_raises_currency_mismatch(self):
+    def test_i04_subtract_different_currency_raises_currency_mismatch(self):
         with pytest.raises(CurrencyMismatch):
             eur("1.00") - usd("1.00")
 
@@ -64,7 +64,7 @@ class TestMoneySign:
             ("-0.01", (False, False, True)),
         ],
     )
-    def test_zero_positive_and_negative_are_exclusive(self, amount, expected):
+    def test_rnf01_zero_positive_and_negative_are_exclusive(self, amount, expected):
         money = eur(amount)
         assert (money.is_zero(), money.is_positive(), money.is_negative()) == expected
 

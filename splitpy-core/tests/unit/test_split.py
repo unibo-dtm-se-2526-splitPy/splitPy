@@ -14,11 +14,11 @@ from splitpy_core.domain.split import EqualSplit, ExactSplit, PercentageSplit, S
 
 
 class TestShares:
-    def test_total_sums_every_share(self):
+    def test_i01_total_sums_every_share(self):
         shares = Shares({ALICE: eur("1.50"), BOB: eur("2.25")})
         assert shares.total() == eur("3.75")
 
-    def test_empty_shares_raises_empty_participant_set(self):
+    def test_rf07_empty_shares_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             Shares({})
 
@@ -35,32 +35,32 @@ class TestShares:
 
 
 class TestEqualSplit:
-    def test_rf05_equal_split_divides_evenly(self):
+    def test_rf07_equal_split_divides_evenly(self):
         shares = EqualSplit(frozenset({ALICE, BOB})).shares(eur("10.00"))
         assert shares.by_member == {ALICE: eur("5.00"), BOB: eur("5.00")}
 
-    def test_rf05_extra_cent_goes_to_lowest_user_id(self):
+    def test_rf07_extra_cent_goes_to_lowest_user_id(self):
         shares = EqualSplit(frozenset({CAROL, BOB, ALICE})).shares(eur("10.00"))
         assert shares.by_member == {ALICE: eur("3.34"), BOB: eur("3.33"), CAROL: eur("3.33")}
 
-    def test_rf05_equal_split_never_loses_cents(self):
+    def test_rf07_equal_split_never_loses_cents(self):
         amount = eur("10.00")
         assert EqualSplit(frozenset({ALICE, BOB, CAROL})).shares(amount).total() == amount
 
-    def test_participants_are_exposed(self):
+    def test_i11_participants_are_exposed(self):
         assert EqualSplit(frozenset({ALICE, BOB})).participants == frozenset({ALICE, BOB})
 
-    def test_empty_participants_raises_empty_participant_set(self):
+    def test_rf07_empty_participants_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             EqualSplit(frozenset())
 
 
 class TestExactSplit:
-    def test_rf06_exact_split_returns_given_amounts(self):
+    def test_rf07_exact_split_returns_given_amounts(self):
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("3.00")})
         assert split.shares(eur("10.00")).by_member == {ALICE: eur("7.00"), BOB: eur("3.00")}
 
-    def test_participants_are_the_keys(self):
+    def test_i11_participants_are_the_keys(self):
         split = ExactSplit({ALICE: eur("7.00"), BOB: eur("3.00")})
         assert split.participants == frozenset({ALICE, BOB})
 
@@ -70,20 +70,20 @@ class TestExactSplit:
         with pytest.raises(SplitDoesNotMatchAmount):
             split.shares(eur("10.00"))
 
-    def test_amounts_in_other_currency_raise_currency_mismatch(self):
+    def test_i04_amounts_in_other_currency_raise_currency_mismatch(self):
         split = ExactSplit({ALICE: usd("10.00")})
         with pytest.raises(CurrencyMismatch):
             split.shares(eur("10.00"))
 
-    def test_rf06_negative_exact_amount_raises_negative_share(self):
+    def test_rf07_negative_exact_amount_raises_negative_share(self):
         with pytest.raises(NegativeShare):
             ExactSplit({ALICE: eur("12.00"), BOB: eur("-2.00")})
 
-    def test_rf06_zero_exact_amount_is_allowed(self):
+    def test_rf07_zero_exact_amount_is_allowed(self):
         split = ExactSplit({ALICE: eur("10.00"), BOB: eur("0.00")})
         assert split.shares(eur("10.00")).by_member[BOB] == eur("0.00")
 
-    def test_empty_amounts_raises_empty_participant_set(self):
+    def test_rf07_empty_amounts_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             ExactSplit({})
 
@@ -113,7 +113,7 @@ class TestPercentageSplit:
         split = PercentageSplit({CAROL: 5_000, ALICE: 5_000})
         assert split.shares(eur("0.01")).by_member == {ALICE: eur("0.01"), CAROL: eur("0.00")}
 
-    def test_participants_are_the_keys(self):
+    def test_i11_participants_are_the_keys(self):
         split = PercentageSplit({ALICE: 5_000, BOB: 5_000})
         assert split.participants == frozenset({ALICE, BOB})
 
@@ -130,7 +130,7 @@ class TestPercentageSplit:
         split = PercentageSplit({ALICE: 10_000, BOB: 0})
         assert split.shares(eur("10.00")).by_member[BOB] == eur("0.00")
 
-    def test_empty_basis_points_raises_empty_participant_set(self):
+    def test_rf07_empty_basis_points_raises_empty_participant_set(self):
         with pytest.raises(EmptyParticipantSet):
             PercentageSplit({})
 

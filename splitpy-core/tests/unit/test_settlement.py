@@ -15,7 +15,7 @@ def plan(**nets: str) -> SettlementPlan:
 
 class TestTransfer:
     @pytest.mark.parametrize("amount", ["0.00", "-5.00"])
-    def test_amount_must_be_positive(self, amount):
+    def test_rf11_amount_must_be_positive(self, amount):
         with pytest.raises(NonPositiveAmount):
             Transfer(debtor=BOB, creditor=ALICE, amount=eur(amount))
 
