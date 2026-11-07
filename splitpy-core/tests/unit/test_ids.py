@@ -35,7 +35,7 @@ class TestIdKinds:
         assert ExpenseId(RAW) != PaymentId(RAW)
         assert len({UserId(RAW), GroupId(RAW), ExpenseId(RAW), PaymentId(RAW)}) == 4
 
-    def test_user_ids_are_ordered_by_uuid(self):
+    def test_rnf02_user_ids_are_ordered_by_uuid(self):
         low, high = UserId(UUID(int=1)), UserId(UUID(int=2))
         assert sorted([high, low]) == [low, high]
 

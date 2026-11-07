@@ -14,7 +14,7 @@ class TestPayment:
         payment = Payment(PAYMENT_ID, ALICE, BOB, eur("12.50"), DAY, note="Pizza")
         assert (payment.debtor, payment.creditor, payment.amount) == (ALICE, BOB, eur("12.50"))
 
-    def test_note_defaults_to_empty(self):
+    def test_rf12_note_defaults_to_empty(self):
         assert Payment(PAYMENT_ID, ALICE, BOB, eur("12.50"), DAY).note == ""
 
     def test_i08_debtor_and_creditor_must_differ(self):
@@ -29,7 +29,7 @@ class TestPayment:
         with pytest.raises(InvalidPayment):
             Payment(PAYMENT_ID, ALICE, BOB, eur("-1.00"), DAY)
 
-    def test_payment_is_immutable(self):
+    def test_i08_payment_is_immutable(self):
         payment = Payment(PAYMENT_ID, ALICE, BOB, eur("12.50"), DAY)
         with pytest.raises(FrozenInstanceError):
             payment.amount = eur("1.00")

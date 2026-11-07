@@ -162,19 +162,19 @@ class TestAdminLeaving:
 
 class TestEncapsulation:
     @pytest.mark.parametrize("attribute", ["id", "name", "currency", "status", "version"])
-    def test_group_attributes_are_read_only(self, attribute):
+    def test_rf04_group_attributes_are_read_only(self, attribute):
         group = new_group()
         with pytest.raises(AttributeError):
             setattr(group, attribute, getattr(group, attribute))
 
-    def test_returned_expense_cannot_be_changed_from_outside(self):
+    def test_i01_returned_expense_cannot_be_changed_from_outside(self):
         group = new_group()
         expense = register_dinner(group)
         with pytest.raises(FrozenInstanceError):
             expense.deleted_at = T2
         assert list(group.active_expenses()) == [expense]
 
-    def test_returned_member_cannot_be_changed_from_outside(self):
+    def test_rf05_returned_member_cannot_be_changed_from_outside(self):
         [founder] = Group.create(GROUP_ID, "Flat", EUR, founder=ALICE, at=T0).active_members()
         with pytest.raises(FrozenInstanceError):
             founder.role = Role.MEMBER
@@ -326,13 +326,13 @@ class TestUpdateExpense:
         [expense] = group.active_expenses()
         assert expense.paid_by == BOB
 
-    def test_unknown_field_cannot_be_updated(self):
+    def test_rf08_unknown_field_cannot_be_updated(self):
         group = new_group()
         register_dinner(group)
         with pytest.raises(TypeError):
             group.update_expense(EXPENSE_ID, by=ALICE, deleted_at=T2)
 
-    def test_updating_a_missing_expense_raises_expense_not_found(self):
+    def test_rf08_updating_a_missing_expense_raises_expense_not_found(self):
         group = new_group()
         with pytest.raises(ExpenseNotFound):
             group.update_expense(expense_id(1), by=ALICE, amount=eur("1.00"))
