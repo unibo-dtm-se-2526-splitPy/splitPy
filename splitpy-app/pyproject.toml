@@ -19,6 +19,7 @@ splitpy-core = { path = "../splitpy-core", develop = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=splitpy_app --cov-report=term-missing --cov-fail-under=70"
 
 [tool.ruff]
 line-length = 100
