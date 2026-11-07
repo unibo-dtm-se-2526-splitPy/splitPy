@@ -8,7 +8,6 @@ import pytest
 
 from splitpy_app.adapters.persistence.in_memory import InMemoryGroupRepository
 from splitpy_core.domain.category import Category
-from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.errors import GroupNotFound
 from splitpy_core.domain.group import Group, GroupStatus
 from splitpy_core.domain.ids import ExpenseId, GroupId, PaymentId, UserId
@@ -25,7 +24,6 @@ GROUP_ID = GroupId(UUID(int=10))
 OTHER_GROUP_ID = GroupId(UUID(int=11))
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 T1 = datetime(2026, 1, 2, tzinfo=UTC)
-JANUARY = DateRange(date(2026, 1, 1), date(2026, 1, 31))
 
 
 def eur(amount: str) -> Money:
@@ -132,27 +130,6 @@ class TestSave:
         repository.save(new_group())
         with pytest.raises(ConcurrencyConflict):
             repository.save(new_group(name="Trip"))
-
-
-class TestGetForPeriod:
-    def test_rf13_only_expenses_in_the_period_are_loaded(self, repository):
-        group = new_group()
-        register(group, 1, "30.00", date(2025, 12, 31))
-        register(group, 2, "10.00", date(2026, 1, 1))
-        register(group, 3, "20.00", date(2026, 1, 31))
-        register(group, 4, "40.00", date(2026, 2, 1))
-        repository.save(group)
-
-        loaded = repository.get_for_period(GROUP_ID, JANUARY)
-
-        assert [expense.id for expense in loaded.expenses()] == [
-            ExpenseId(UUID(int=102)),
-            ExpenseId(UUID(int=103)),
-        ]
-
-    def test_unknown_group_is_not_found(self, repository):
-        with pytest.raises(GroupNotFound):
-            repository.get_for_period(GROUP_ID, JANUARY)
 
 
 class TestListSummariesForUser:

@@ -5,23 +5,21 @@ from datetime import datetime
 from typing import Self
 
 from splitpy_app.application.ports import RecordedEvent
-from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.errors import GroupNotFound
 from splitpy_core.domain.events import DomainEvent
-from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.group import Group
 from splitpy_core.domain.ids import GroupId, UserId
 from splitpy_core.ports.group_repository import ConcurrencyConflict, GroupSummary
 
 
-def _rebuild(group: Group, expenses: Iterable[Expense], version: int) -> Group:
+def _rebuild(group: Group, version: int) -> Group:
     """A separate Group, so changes to the one handed out never reach the stored one."""
     return Group(
         group.id,
         group.name,
         group.currency,
         group.members(),
-        expenses,
+        group.expenses(),
         group.payments(),
         group.status,
         version=version,
@@ -34,12 +32,7 @@ class InMemoryGroupRepository:
 
     def get(self, group_id: GroupId) -> Group:
         group = self._stored(group_id)
-        return _rebuild(group, group.expenses(), group.version)
-
-    def get_for_period(self, group_id: GroupId, period: DateRange) -> Group:
-        group = self._stored(group_id)
-        expenses = [e for e in group.expenses() if period.contains(e.occurred_on)]
-        return _rebuild(group, expenses, group.version)
+        return _rebuild(group, group.version)
 
     def save(self, group: Group) -> None:
         stored = self._groups.get(group.id)
@@ -48,7 +41,7 @@ class InMemoryGroupRepository:
             raise ConcurrencyConflict(
                 f"group {group.id} is at version {stored_version}, not {group.version}"
             )
-        self._groups[group.id] = _rebuild(group, group.expenses(), group.version + 1)
+        self._groups[group.id] = _rebuild(group, group.version + 1)
 
     def list_summaries_for_user(self, user_id: UserId) -> list[GroupSummary]:
         return [
