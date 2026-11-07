@@ -40,7 +40,7 @@ class TestExpenseSoftDelete:
     def test_rf09_expense_with_deleted_at_is_not_active(self):
         assert not expense(deleted_at=T2).is_active()
 
-    def test_deleted_at_defaults_to_none(self):
+    def test_rf09_deleted_at_defaults_to_none(self):
         created = Expense(
             EXPENSE_ID,
             "Dinner",
@@ -52,6 +52,6 @@ class TestExpenseSoftDelete:
         )
         assert created.deleted_at is None
 
-    def test_expense_is_immutable(self):
+    def test_i01_expense_is_immutable(self):
         with pytest.raises(FrozenInstanceError):
             expense().deleted_at = T2
