@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Trusted publishing: PyPI accepts this workflow's OIDC token, no API token is stored.
+      id-token: write
     defaults:
       run:
         working-directory: splitpy-core
@@ -33,6 +35,7 @@ jobs:
       # main is protected by a PR-only ruleset, so no version-bump commit is pushed:
       # the core-v* tag is the source of truth and the version is stamped only at build time.
       - name: Tag and GitHub Release
+        id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release version --no-commit --no-changelog
@@ -40,3 +43,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release publish
+      - name: Publish to PyPI
+        if: steps.release.outputs.released == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: splitpy-core/dist/
