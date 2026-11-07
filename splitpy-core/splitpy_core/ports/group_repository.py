@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import ClassVar, Protocol
 
-from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.group import Group, GroupStatus
 from splitpy_core.domain.ids import GroupId, UserId
 from splitpy_core.domain.money import Currency
@@ -26,13 +25,6 @@ class GroupSummary:
 class GroupRepository(Protocol):
     def get(self, group_id: GroupId) -> Group:
         """Raises GroupNotFound."""
-        ...
-
-    def get_for_period(self, group_id: GroupId, period: DateRange) -> Group:
-        """Only the expenses that occurred in the period: enough for a report, not for balances.
-
-        Raises GroupNotFound.
-        """
         ...
 
     def save(self, group: Group) -> None:
