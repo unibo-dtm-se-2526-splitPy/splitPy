@@ -48,11 +48,14 @@ class Group:
         expenses: Iterable[Expense] = (),
         payments: Iterable[Payment] = (),
         status: GroupStatus = GroupStatus.ACTIVE,
+        version: int = 0,
     ) -> None:
         self._id = id
         self._name = name
         self._currency = currency
         self._status = status
+        # Commands never change it: the repository bumps it on save (optimistic locking).
+        self._version = version
         self._members = {member.user_id: member for member in members}
         self._expenses = {expense.id: expense for expense in expenses}
         self._payments = {payment.id: payment for payment in payments}
@@ -85,6 +88,10 @@ class Group:
     @property
     def status(self) -> GroupStatus:
         return self._status
+
+    @property
+    def version(self) -> int:
+        return self._version
 
     def add_member(self, user_id: UserId, role: Role, *, by: UserId, at: datetime) -> None:
         self._check_writable()
@@ -228,6 +235,17 @@ class Group:
 
     def active_expenses(self) -> Iterator[Expense]:
         return (expense for expense in self._expenses.values() if expense.is_active())
+
+    def members(self) -> Iterator[Member]:
+        """Former members too: a repository needs them to rebuild the group."""
+        return iter(self._members.values())
+
+    def expenses(self) -> Iterator[Expense]:
+        """Removed expenses too: a repository needs them to rebuild the group."""
+        return iter(self._expenses.values())
+
+    def payments(self) -> Iterator[Payment]:
+        return iter(self._payments.values())
 
     def pull_events(self) -> list[events.DomainEvent]:
         """Hand over the recorded events and forget them, so each is published once."""
