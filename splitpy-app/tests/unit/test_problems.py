@@ -28,7 +28,7 @@ def all_domain_errors():
 
 
 class TestStatus:
-    def test_non_administrator_is_forbidden(self):
+    def test_rf05_non_administrator_is_forbidden(self):
         assert problem_for(NotAnAdministrator("no"), INSTANCE).status == 403
 
     @pytest.mark.parametrize("error", [GroupNotFound, ExpenseNotFound, PaymentNotFound])

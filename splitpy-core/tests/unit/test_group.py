@@ -39,7 +39,7 @@ from splitpy_core.domain.errors import (
 )
 from splitpy_core.domain.group import Group, GroupStatus
 from splitpy_core.domain.ids import UserId
-from splitpy_core.domain.member import Role
+from splitpy_core.domain.member import Member, Role
 from splitpy_core.domain.split import EqualSplit, ExactSplit
 
 
@@ -161,20 +161,20 @@ class TestAdminLeaving:
 
 
 class TestEncapsulation:
-    @pytest.mark.parametrize("attribute", ["id", "name", "currency", "status"])
-    def test_group_attributes_are_read_only(self, attribute):
+    @pytest.mark.parametrize("attribute", ["id", "name", "currency", "status", "version"])
+    def test_rf04_group_attributes_are_read_only(self, attribute):
         group = new_group()
         with pytest.raises(AttributeError):
             setattr(group, attribute, getattr(group, attribute))
 
-    def test_returned_expense_cannot_be_changed_from_outside(self):
+    def test_i01_returned_expense_cannot_be_changed_from_outside(self):
         group = new_group()
         expense = register_dinner(group)
         with pytest.raises(FrozenInstanceError):
             expense.deleted_at = T2
         assert list(group.active_expenses()) == [expense]
 
-    def test_returned_member_cannot_be_changed_from_outside(self):
+    def test_rf05_returned_member_cannot_be_changed_from_outside(self):
         [founder] = Group.create(GROUP_ID, "Flat", EUR, founder=ALICE, at=T0).active_members()
         with pytest.raises(FrozenInstanceError):
             founder.role = Role.MEMBER
@@ -326,13 +326,13 @@ class TestUpdateExpense:
         [expense] = group.active_expenses()
         assert expense.paid_by == BOB
 
-    def test_unknown_field_cannot_be_updated(self):
+    def test_rf08_unknown_field_cannot_be_updated(self):
         group = new_group()
         register_dinner(group)
         with pytest.raises(TypeError):
             group.update_expense(EXPENSE_ID, by=ALICE, deleted_at=T2)
 
-    def test_updating_a_missing_expense_raises_expense_not_found(self):
+    def test_rf08_updating_a_missing_expense_raises_expense_not_found(self):
         group = new_group()
         with pytest.raises(ExpenseNotFound):
             group.update_expense(expense_id(1), by=ALICE, amount=eur("1.00"))
@@ -457,3 +457,57 @@ class TestArchive:
         register_dinner(group)
         group.archive(by=ALICE)
         assert group.balances().by_member[ALICE] == eur("20.00")
+
+
+class TestVersion:
+    def test_new_group_starts_at_version_zero(self):
+        assert new_group().version == 0
+
+    def test_rebuilt_group_keeps_the_version_it_was_stored_with(self):
+        group = Group(GROUP_ID, "Flat", EUR, [Member(ALICE, Role.ADMIN, joined_at=T0)], version=3)
+        assert group.version == 3
+
+    def test_commands_leave_the_version_to_the_repository(self):
+        group = new_group()
+        register_dinner(group)
+        group.archive(by=ALICE)
+        assert group.version == 0
+
+
+class TestStorageAccessors:
+    def test_rf05_former_member_is_kept(self):
+        group = new_group()
+        group.remove_member(CAROL, by=ALICE, at=T2)
+        former = next(member for member in group.members() if member.user_id == CAROL)
+        assert former.left_at == T2
+
+    def test_rf09_removed_expense_is_kept(self):
+        group = new_group()
+        register_dinner(group)
+        group.remove_expense(EXPENSE_ID, by=ALICE, at=T2)
+        [removed] = group.expenses()
+        assert removed.deleted_at == T2
+
+    def test_rf12_recorded_payments_are_listed(self):
+        group = new_group()
+        payment = group.record_payment(PAYMENT_ID, BOB, ALICE, eur("10.00"), DAY, by=BOB)
+        assert list(group.payments()) == [payment]
+
+    def test_rf10_group_rebuilt_from_its_accessors_has_the_same_balances(self):
+        group = new_group()
+        register_dinner(group, paid_by=CAROL)
+        group.record_payment(PAYMENT_ID, ALICE, CAROL, eur("10.00"), DAY, by=ALICE)
+        group.record_payment(payment_id(1), BOB, CAROL, eur("10.00"), DAY, by=BOB)
+        group.remove_member(CAROL, by=ALICE, at=T2)
+        rebuilt = Group(
+            group.id,
+            group.name,
+            group.currency,
+            group.members(),
+            group.expenses(),
+            group.payments(),
+            group.status,
+            version=group.version,
+        )
+        assert rebuilt.balances() == group.balances()
+        assert active_ids(rebuilt) == {ALICE, BOB}

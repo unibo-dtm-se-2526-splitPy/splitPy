@@ -15,7 +15,7 @@ def compute(expenses: Iterable[Expense] = (), payments: Iterable[Payment] = ()) 
 
 
 class TestBalancesCompute:
-    def test_without_movements_every_member_is_at_zero(self):
+    def test_rf10_without_movements_every_member_is_at_zero(self):
         assert compute().by_member == {ALICE: eur("0.00"), BOB: eur("0.00"), CAROL: eur("0.00")}
 
     def test_rf10_payer_is_credited_and_participants_are_debited(self):
@@ -36,20 +36,20 @@ class TestBalancesCompute:
 
 
 class TestBalancesQueries:
-    def test_debtors_are_members_with_negative_balance(self):
+    def test_rf10_debtors_are_members_with_negative_balance(self):
         assert compute(expenses=[expense("30.00")]).debtors() == [BOB, CAROL]
 
-    def test_creditors_are_members_with_positive_balance(self):
+    def test_rf10_creditors_are_members_with_positive_balance(self):
         assert compute(expenses=[expense("30.00")]).creditors() == [ALICE]
 
-    def test_is_settled_when_every_balance_is_zero(self):
+    def test_rf10_is_settled_when_every_balance_is_zero(self):
         balances = compute(
             expenses=[expense("30.00")],
             payments=[payment(BOB, ALICE, "10.00"), payment(CAROL, ALICE, "10.00", n=1)],
         )
         assert balances.is_settled()
 
-    def test_is_not_settled_while_someone_owes(self):
+    def test_rf10_is_not_settled_while_someone_owes(self):
         assert not compute(expenses=[expense("30.00")]).is_settled()
 
     def test_i02_changing_the_source_dict_does_not_change_the_balances(self):

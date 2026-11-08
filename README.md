@@ -10,7 +10,7 @@ by users, it does not move money.
 
 | Component | Description |
 |---|---|
-| `splitpy-core` | Domain library: money arithmetic in cents, split strategies, balances, settlement, reporting. No framework dependencies. Published on PyPI |
+| `splitpy-core` | Domain library: money arithmetic in cents, split strategies, balances, settlement, reporting. No framework dependencies. Published on [PyPI](https://pypi.org/project/splitpy-core/) |
 | `splitpy-app` | Application layer and adapters: use cases, REST API (FastAPI), persistence (SQLAlchemy/PostgreSQL) |
 | `splitpy-web` | Single-page application (React + TypeScript). Planned, milestone M9 |
 

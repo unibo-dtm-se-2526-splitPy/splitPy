@@ -38,16 +38,16 @@ class TestPullEvents:
             events.GroupCreated(group_id=GROUP_ID, name="Flat", currency=EUR, founder=ALICE)
         ]
 
-    def test_pull_events_empties_the_queue(self):
+    def test_rf15_pull_events_empties_the_queue(self):
         group = Group.create(GROUP_ID, "Flat", EUR, founder=ALICE, at=T0)
         group.pull_events()
         assert group.pull_events() == []
 
-    def test_a_reconstituted_group_has_no_events(self):
+    def test_rf15_a_reconstituted_group_has_no_events(self):
         group = Group(GROUP_ID, "Flat", EUR, [Member(ALICE, Role.ADMIN, joined_at=T0)])
         assert group.pull_events() == []
 
-    def test_events_are_returned_in_the_order_they_happened(self):
+    def test_rf15_events_are_returned_in_the_order_they_happened(self):
         group = Group.create(GROUP_ID, "Flat", EUR, founder=ALICE, at=T0)
         group.add_member(BOB, Role.MEMBER, by=ALICE, at=T1)
         assert [type(event) for event in group.pull_events()] == [
@@ -55,7 +55,7 @@ class TestPullEvents:
             events.MemberAdded,
         ]
 
-    def test_a_rejected_command_records_no_event(self):
+    def test_rf15_a_rejected_command_records_no_event(self):
         group = group_with_bob()
         with pytest.raises(NotAnAdministrator):
             group.add_member(CAROL, Role.MEMBER, by=BOB, at=T1)

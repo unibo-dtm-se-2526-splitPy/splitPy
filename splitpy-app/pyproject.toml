@@ -19,6 +19,8 @@ splitpy-core = { path = "../splitpy-core", develop = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "--cov=splitpy_app --cov-report=term-missing --cov-fail-under=70"
 
 [tool.ruff]
 line-length = 100
@@ -28,6 +30,32 @@ known-first-party = ["splitpy_app", "splitpy_core"]
 
 [tool.black]
 line-length = 100
+
+# Hexagonal boundaries, checked in CI with `lint-imports`.
+[tool.importlinter]
+root_package = "splitpy_app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The application layer depends on no framework and not on the adapters"
+type = "forbidden"
+source_modules = ["splitpy_app.application"]
+forbidden_modules = ["fastapi", "sqlalchemy", "pydantic", "splitpy_app.adapters"]
+
+[tool.semantic_release]
+tag_format = "app-v{version}"
+version_toml = ["pyproject.toml:project.version"]
+commit_parser = "conventional-monorepo"
+# Versioned independently of the core: only commits under splitpy-app/ move this version.
+allow_zero_version = true
+major_on_zero = false
+build_command = "poetry build"
+
+[tool.semantic_release.commit_parser_options]
+path_filters = ["."]
+
+[tool.semantic_release.branches.main]
+match = "^main$"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
@@ -39,5 +67,6 @@ dev = [
     "pytest-cov (>=7.1.0,<8.0.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "ruff (>=0.16.1,<0.17.0)",
-    "black (>=26.5.1,<27.0.0)"
+    "black (>=26.5.1,<27.0.0)",
+    "import-linter (>=2.15,<3.0)"
 ]
