@@ -27,11 +27,11 @@ def create_group(uow: UnitOfWork) -> None:
     uow.events.append(group.pull_events(), at=T0)
 
 
-@pytest.fixture(params=["in_memory", "sqlalchemy"])
+@pytest.fixture(params=["in_memory", "sqlite", "postgres"])
 def uow(request) -> UnitOfWork:
     if request.param == "in_memory":
         return InMemoryUnitOfWork()
-    return SqlAlchemyUnitOfWork(request.getfixturevalue("sessions"))
+    return SqlAlchemyUnitOfWork(request.getfixturevalue("database")(request.param))
 
 
 class TestUnitOfWork:

@@ -23,11 +23,6 @@ def alembic_config(url: str | None = None) -> Config:
 
 
 @pytest.fixture
-def database_url(tmp_path) -> str:
-    return f"sqlite:///{tmp_path / 'splitpy.db'}"
-
-
-@pytest.fixture
 def engine(database_url):
     engine = create_engine(database_url)
     yield engine
