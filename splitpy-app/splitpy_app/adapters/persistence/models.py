@@ -1,7 +1,7 @@
 """SQLAlchemy tables, kept apart from the domain entities: the mappers translate between them."""
 
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
 from uuid import UUID
@@ -16,8 +16,10 @@ from sqlalchemy import (
     Integer,
     MetaData,
     String,
+    TypeDecorator,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from splitpy_core.domain.category import Category
@@ -45,9 +47,24 @@ def one_of(column: str, values: Iterable[str]) -> str:
     return f"{column} IN ({quoted})"
 
 
+class UtcDateTime(TypeDecorator[datetime]):
+    """Aware instants in UTC on every database: SQLite would otherwise drop the offset."""
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: Dialect) -> datetime | None:
+        return None if value is None else value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect: Dialect) -> datetime | None:
+        if value is None:
+            return None
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
-    type_annotation_map: ClassVar[dict[Any, Any]] = {datetime: DateTime(timezone=True)}
+    type_annotation_map: ClassVar[dict[Any, Any]] = {datetime: UtcDateTime()}
 
 
 class GroupRow(Base):
@@ -64,12 +81,19 @@ class GroupRow(Base):
     status: Mapped[str]
     version: Mapped[int]
 
-    members: Mapped[list["MemberRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
+    # A fixed order, so that two loads of the same group read the same.
+    members: Mapped[list["MemberRow"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin", order_by="MemberRow.user_id"
+    )
     expenses: Mapped[list["ExpenseRow"]] = relationship(
-        cascade="all, delete-orphan", lazy="selectin"
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="(ExpenseRow.occurred_on, ExpenseRow.id)",
     )
     payments: Mapped[list["PaymentRow"]] = relationship(
-        cascade="all, delete-orphan", lazy="selectin"
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="(PaymentRow.occurred_on, PaymentRow.id)",
     )
 
 
