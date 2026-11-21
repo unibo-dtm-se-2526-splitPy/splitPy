@@ -1,18 +1,22 @@
 """Contract every GroupRepository implementation must pass, in memory and on a database alike."""
 
+from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
 import pytest
 
+from splitpy_app.adapters.persistence.database import SqlAlchemyGroupRepository
 from splitpy_app.adapters.persistence.in_memory import InMemoryGroupRepository
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.errors import GroupNotFound
+from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.group import Group, GroupStatus
 from splitpy_core.domain.ids import ExpenseId, GroupId, PaymentId, UserId
-from splitpy_core.domain.member import Role
+from splitpy_core.domain.member import Member, Role
 from splitpy_core.domain.money import Currency, Money
+from splitpy_core.domain.payment import Payment
 from splitpy_core.domain.split import EqualSplit
 from splitpy_core.ports.group_repository import ConcurrencyConflict, GroupSummary
 
@@ -43,6 +47,14 @@ def register(group: Group, n: int, amount: str, occurred_on: date) -> None:
     )
 
 
+def by_id[T: (Expense, Payment)](items: Iterable[T]) -> list[T]:
+    return sorted(items, key=lambda item: str(item.id))
+
+
+def by_user(members: Iterable[Member]) -> list[Member]:
+    return sorted(members, key=lambda member: str(member.user_id))
+
+
 def new_group(id: GroupId = GROUP_ID, name: str = "Flat") -> Group:
     """Alice (ADMIN) and Bob, with no expenses."""
     group = Group.create(id, name, EUR, founder=ALICE, at=T0)
@@ -50,9 +62,13 @@ def new_group(id: GroupId = GROUP_ID, name: str = "Flat") -> Group:
     return group
 
 
-@pytest.fixture(params=[InMemoryGroupRepository], ids=["in_memory"])
+@pytest.fixture(params=["in_memory", "sqlite", "postgres"])
 def repository(request):
-    return request.param()
+    if request.param == "in_memory":
+        yield InMemoryGroupRepository()
+        return
+    with request.getfixturevalue("database")(request.param)() as session:
+        yield SqlAlchemyGroupRepository(session)
 
 
 class TestGet:
@@ -78,9 +94,10 @@ class TestGet:
             EUR,
             GroupStatus.ACTIVE,
         )
-        assert list(loaded.members()) == list(group.members())
-        assert list(loaded.expenses()) == list(group.expenses())
-        assert list(loaded.payments()) == list(group.payments())
+        # The port promises no order, and a database keeps none.
+        assert by_user(loaded.members()) == by_user(group.members())
+        assert by_id(loaded.expenses()) == by_id(group.expenses())
+        assert by_id(loaded.payments()) == by_id(group.payments())
         assert loaded.balances() == group.balances()
 
     def test_loaded_group_has_no_pending_events(self, repository):
