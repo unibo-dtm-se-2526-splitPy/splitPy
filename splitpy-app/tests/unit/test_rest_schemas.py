@@ -13,6 +13,7 @@ from support import (
     EUR,
     FIRST_ID,
     GROUP_ID,
+    NOW,
     FixedClock,
     SequentialIds,
     eur,
@@ -36,17 +37,20 @@ from splitpy_app.adapters.rest.schemas.groups import (
     UpdateGroupRequest,
 )
 from splitpy_app.adapters.rest.schemas.insights import (
+    ActivityEntryResponse,
     BalancesResponse,
     ReportResponse,
     SettlementResponse,
 )
 from splitpy_app.adapters.rest.schemas.money import MoneySchema
 from splitpy_app.adapters.rest.schemas.splits import SplitStrategyFactory, split_schema_for
+from splitpy_app.application.ports import RecordedEvent
 from splitpy_app.application.use_cases.expenses import RecordPayment, RegisterExpense
 from splitpy_core.domain.balances import Balances
 from splitpy_core.domain.category import Category
 from splitpy_core.domain.date_range import DateRange
 from splitpy_core.domain.errors import UnsupportedCurrency
+from splitpy_core.domain.events import ExpenseUpdated, GroupCreated, MemberAdded
 from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.group import GroupStatus
 from splitpy_core.domain.ids import ExpenseId, PaymentId
@@ -340,4 +344,35 @@ class TestInsights:
             "total": money(3000),
             "by_category": {"FOOD": money(3000)},
             "by_member": {A: money(1500), B: money(1500)},
+        }
+
+    @pytest.mark.parametrize(
+        ("event", "data"),
+        [
+            (
+                GroupCreated(group_id=GROUP_ID, name="Flat", currency=EUR, founder=ALICE),
+                {"name": "Flat", "currency": "EUR", "founder": A},
+            ),
+            (
+                MemberAdded(group_id=GROUP_ID, user_id=BOB, role=Role.MEMBER, by=ALICE),
+                {"user_id": B, "role": "MEMBER", "by": A},
+            ),
+            (
+                ExpenseUpdated(
+                    group_id=GROUP_ID,
+                    expense_id=EXPENSE_ID,
+                    changed_fields=frozenset({"split", "amount"}),
+                    by=ALICE,
+                ),
+                {"expense_id": str(EXPENSE_ID), "changed_fields": ["amount", "split"], "by": A},
+            ),
+        ],
+    )
+    def test_rf15_event_is_written_with_its_fields_as_plain_json(self, event, data):
+        entry = ActivityEntryResponse.from_domain(RecordedEvent(event, NOW))
+
+        assert json_of(entry) == {
+            "type": type(event).__name__,
+            "at": "2026-02-01T12:00:00Z",
+            "data": data,
         }

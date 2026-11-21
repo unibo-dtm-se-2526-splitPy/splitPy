@@ -22,6 +22,7 @@ from support import (
 from splitpy_app.adapters.persistence.in_memory import InMemoryUnitOfWork
 from splitpy_app.application.ports import RecordedEvent
 from splitpy_app.application.use_cases.expenses import (
+    ListPayments,
     RecordPayment,
     RegisterExpense,
     RemoveExpense,
@@ -37,6 +38,7 @@ from splitpy_core.domain.events import (
 )
 from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.ids import ExpenseId, PaymentId, UserId
+from splitpy_core.domain.payment import Payment
 from splitpy_core.domain.split import EqualSplit
 
 EXPENSE_ID = ExpenseId(UUID(int=100))
@@ -199,3 +201,26 @@ class TestRecordPayment:
             by=BOB,
         )
         assert feed(uow) == [RecordedEvent(recorded, NOW)]
+
+
+class TestListPayments:
+    def test_rf12_recorded_payments_are_listed(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB)
+        record = RecordPayment(uow, FixedClock(), SequentialIds())
+        record.execute(
+            group_id=GROUP_ID,
+            debtor=BOB,
+            creditor=ALICE,
+            amount=eur("15.00"),
+            occurred_on=DAY,
+            by=BOB,
+        )
+
+        assert ListPayments(uow).execute(group_id=GROUP_ID) == [
+            Payment(PaymentId(FIRST_ID), BOB, ALICE, eur("15.00"), DAY)
+        ]
+
+    def test_rf12_unknown_group_raises_group_not_found(self):
+        with pytest.raises(GroupNotFound):
+            ListPayments(InMemoryUnitOfWork()).execute(group_id=GROUP_ID)
