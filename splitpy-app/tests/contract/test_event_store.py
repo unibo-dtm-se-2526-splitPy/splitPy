@@ -29,12 +29,12 @@ REMOVED = MemberRemoved(group_id=GROUP_ID, user_id=BOB, by=ALICE)
 ARCHIVED = GroupArchived(group_id=GROUP_ID, by=ALICE)
 
 
-@pytest.fixture(params=["in_memory", "sqlalchemy"])
+@pytest.fixture(params=["in_memory", "sqlite", "postgres"])
 def event_store(request):
     if request.param == "in_memory":
         yield InMemoryEventStore()
         return
-    with request.getfixturevalue("sessions")() as session:
+    with request.getfixturevalue("database")(request.param)() as session:
         # Events reference their group, so the groups are stored first.
         groups = SqlAlchemyGroupRepository(session)
         for group_id in (GROUP_ID, OTHER_GROUP_ID):

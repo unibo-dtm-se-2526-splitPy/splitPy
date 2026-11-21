@@ -62,12 +62,12 @@ def new_group(id: GroupId = GROUP_ID, name: str = "Flat") -> Group:
     return group
 
 
-@pytest.fixture(params=["in_memory", "sqlalchemy"])
+@pytest.fixture(params=["in_memory", "sqlite", "postgres"])
 def repository(request):
     if request.param == "in_memory":
         yield InMemoryGroupRepository()
         return
-    with request.getfixturevalue("sessions")() as session:
+    with request.getfixturevalue("database")(request.param)() as session:
         yield SqlAlchemyGroupRepository(session)
 
 
