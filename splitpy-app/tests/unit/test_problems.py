@@ -1,6 +1,11 @@
 import pytest
 
-from splitpy_app.adapters.rest.problems import PROBLEM_CONTENT_TYPE, problem_for
+from splitpy_app.adapters.rest.problems import (
+    PROBLEM_CONTENT_TYPE,
+    Unauthenticated,
+    problem_for,
+    validation_problem,
+)
 from splitpy_core.domain import errors
 from splitpy_core.domain.errors import (
     AlreadyAMember,
@@ -15,6 +20,7 @@ from splitpy_core.domain.errors import (
     PercentagesDoNotSumTo100,
     SplitDoesNotMatchAmount,
 )
+from splitpy_core.ports.group_repository import ConcurrencyConflict
 
 INSTANCE = "/api/v1/groups/3f1b/expenses"
 
@@ -53,6 +59,14 @@ class TestStatus:
     def test_every_domain_error_maps_to_a_client_error(self, error):
         assert 400 <= problem_for(error("x"), INSTANCE).status < 500
 
+    def test_concurrent_change_is_a_conflict_the_client_retries(self):
+        problem = problem_for(ConcurrencyConflict("group changed since version 3"), INSTANCE)
+        assert (problem.status, problem.code) == (409, "CONCURRENCY_CONFLICT")
+
+    def test_missing_user_is_unauthenticated(self):
+        problem = problem_for(Unauthenticated("missing X-User-Id header"), INSTANCE)
+        assert (problem.status, problem.code) == (401, "UNAUTHENTICATED")
+
 
 class TestProblemBody:
     def test_domain_error_becomes_a_problem_with_its_stable_code(self):
@@ -77,3 +91,14 @@ class TestProblemBody:
 
     def test_content_type_is_problem_json(self):
         assert PROBLEM_CONTENT_TYPE == "application/problem+json"
+
+    def test_invalid_request_is_a_validation_error_naming_the_field(self):
+        errors = [
+            {"loc": ("body", "amount", "cents"), "msg": "Input should be a valid integer"},
+            {"loc": ("query", "to"), "msg": "Field required"},
+        ]
+        problem = validation_problem(errors, INSTANCE)
+        assert (problem.status, problem.code) == (422, "VALIDATION_ERROR")
+        assert problem.detail == (
+            "amount.cents: Input should be a valid integer; to: Field required"
+        )
