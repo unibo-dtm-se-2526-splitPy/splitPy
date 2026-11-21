@@ -4,10 +4,16 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
+from support import EUR
 
+from splitpy_app.adapters.persistence.database import (
+    SqlAlchemyEventStore,
+    SqlAlchemyGroupRepository,
+)
 from splitpy_app.adapters.persistence.in_memory import InMemoryEventStore
 from splitpy_app.application.ports import RecordedEvent
 from splitpy_core.domain.events import GroupArchived, MemberAdded, MemberRemoved
+from splitpy_core.domain.group import Group
 from splitpy_core.domain.ids import GroupId, UserId
 from splitpy_core.domain.member import Role
 
@@ -23,9 +29,17 @@ REMOVED = MemberRemoved(group_id=GROUP_ID, user_id=BOB, by=ALICE)
 ARCHIVED = GroupArchived(group_id=GROUP_ID, by=ALICE)
 
 
-@pytest.fixture(params=[InMemoryEventStore], ids=["in_memory"])
+@pytest.fixture(params=["in_memory", "sqlalchemy"])
 def event_store(request):
-    return request.param()
+    if request.param == "in_memory":
+        yield InMemoryEventStore()
+        return
+    with request.getfixturevalue("sessions")() as session:
+        # Events reference their group, so the groups are stored first.
+        groups = SqlAlchemyGroupRepository(session)
+        for group_id in (GROUP_ID, OTHER_GROUP_ID):
+            groups.save(Group.create(group_id, "Flat", EUR, founder=ALICE, at=T0))
+        yield SqlAlchemyEventStore(session)
 
 
 class TestEventStore:
@@ -35,6 +49,15 @@ class TestEventStore:
         assert event_store.list_for_group(GROUP_ID) == [
             RecordedEvent(ARCHIVED, T1),
             RecordedEvent(REMOVED, T1),
+            RecordedEvent(ADDED, T0),
+        ]
+
+    def test_rf15_the_instant_orders_the_feed_not_the_order_of_appending(self, event_store):
+        # Two use cases can commit in the opposite order of the instants they read.
+        event_store.append([ARCHIVED], at=T1)
+        event_store.append([ADDED], at=T0)
+        assert event_store.list_for_group(GROUP_ID) == [
+            RecordedEvent(ARCHIVED, T1),
             RecordedEvent(ADDED, T0),
         ]
 

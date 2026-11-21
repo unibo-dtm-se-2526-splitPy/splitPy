@@ -68,7 +68,9 @@ class InMemoryEventStore:
         self._recorded.extend(RecordedEvent(event, at) for event in events)
 
     def list_for_group(self, group_id: GroupId) -> list[RecordedEvent]:
-        return [r for r in reversed(self._recorded) if r.event.group_id == group_id]
+        recorded = [r for r in reversed(self._recorded) if r.event.group_id == group_id]
+        # Newest instant first; the sort is stable, so events of one instant stay newest first.
+        return sorted(recorded, key=lambda r: r.at, reverse=True)
 
     def copy(self) -> "InMemoryEventStore":
         return InMemoryEventStore(self._recorded)
