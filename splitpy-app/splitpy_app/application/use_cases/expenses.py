@@ -116,3 +116,12 @@ class RecordPayment:
             self._uow.events.append(group.pull_events(), at=at)
             self._uow.commit()
         return payment
+
+
+class ListPayments:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    def execute(self, *, group_id: GroupId) -> list[Payment]:
+        with self._uow:
+            return list(self._uow.groups.get(group_id).payments())
