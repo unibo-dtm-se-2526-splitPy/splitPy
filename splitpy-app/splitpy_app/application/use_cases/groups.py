@@ -31,7 +31,7 @@ class AddMember:
         self._uow = uow
         self._clock = clock
 
-    def execute(self, *, group_id: GroupId, user_id: UserId, role: Role, by: UserId) -> None:
+    def execute(self, *, group_id: GroupId, user_id: UserId, role: Role, by: UserId) -> Group:
         at = self._clock.now()
         with self._uow:
             group = self._uow.groups.get(group_id)
@@ -39,6 +39,7 @@ class AddMember:
             self._uow.groups.save(group)
             self._uow.events.append(group.pull_events(), at=at)
             self._uow.commit()
+        return group
 
 
 class RemoveMember:
@@ -63,7 +64,7 @@ class ArchiveGroup:
         self._uow = uow
         self._clock = clock
 
-    def execute(self, *, group_id: GroupId, by: UserId) -> None:
+    def execute(self, *, group_id: GroupId, by: UserId) -> Group:
         at = self._clock.now()
         with self._uow:
             group = self._uow.groups.get(group_id)
@@ -71,6 +72,16 @@ class ArchiveGroup:
             self._uow.groups.save(group)
             self._uow.events.append(group.pull_events(), at=at)
             self._uow.commit()
+        return group
+
+
+class GetGroup:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    def execute(self, *, group_id: GroupId) -> Group:
+        with self._uow:
+            return self._uow.groups.get(group_id)
 
 
 class ListMyGroups:

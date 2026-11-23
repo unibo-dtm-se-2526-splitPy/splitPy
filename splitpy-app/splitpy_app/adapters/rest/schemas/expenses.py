@@ -93,6 +93,12 @@ class ExpenseResponse(Schema):
         )
 
 
+class ExpensePageResponse(Schema):
+    items: list[ExpenseResponse]
+    page: int
+    size: int
+
+
 class RecordPaymentRequest(Schema):
     debtor: UUID
     creditor: UUID
