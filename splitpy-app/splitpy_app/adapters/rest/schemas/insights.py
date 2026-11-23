@@ -1,16 +1,20 @@
 """Schemas of balances, settlement plan and report, computed on every request (RF-10, RF-11, RF-13)."""
 
 from collections.abc import Mapping
-from datetime import date
-from typing import Self
+from dataclasses import fields
+from datetime import date, datetime
+from enum import Enum
+from typing import Any, Self
 from uuid import UUID
 
 from splitpy_app.adapters.rest.schemas.base import Schema
 from splitpy_app.adapters.rest.schemas.money import MoneySchema
+from splitpy_app.application.ports import RecordedEvent
 from splitpy_core.domain.balances import Balances
 from splitpy_core.domain.category import Category
+from splitpy_core.domain.events import DomainEvent
 from splitpy_core.domain.ids import UserId
-from splitpy_core.domain.money import Money
+from splitpy_core.domain.money import Currency, Money
 from splitpy_core.domain.report import SpendingReport
 from splitpy_core.domain.settlement import SettlementPlan
 
@@ -71,3 +75,48 @@ class ReportResponse(Schema):
             },
             by_member=_by_user(report.by_member),
         )
+
+
+class ActivityEntryResponse(Schema):
+    """type is the name of the domain event; data holds its fields, the group id left out."""
+
+    type: str
+    at: datetime
+    data: dict[str, Any]
+
+    @classmethod
+    def from_domain(cls, recorded: RecordedEvent) -> Self:
+        return cls(
+            type=type(recorded.event).__name__, at=recorded.at, data=_event_data(recorded.event)
+        )
+
+
+class ActivityPageResponse(Schema):
+    items: list[ActivityEntryResponse]
+    page: int
+    size: int
+
+
+def _event_data(event: DomainEvent) -> dict[str, Any]:
+    return {
+        field.name: _plain(getattr(event, field.name))
+        for field in fields(event)
+        if field.name != "group_id"
+    }
+
+
+def _plain(value: object) -> object:
+    match value:
+        case Money():
+            return MoneySchema.from_domain(value).model_dump()
+        case Currency():
+            return value.code
+        case Enum():
+            return value.value
+        case frozenset():
+            return sorted(value)
+        case str():
+            return value
+        case _:
+            # The typed ids print as their UUID.
+            return str(value)

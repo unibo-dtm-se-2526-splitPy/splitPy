@@ -1,7 +1,8 @@
-"""Domain errors as RFC 9457 problem details. Pure: the FastAPI exception handler only wraps it."""
+"""Errors as RFC 9457 problem details. Pure: the FastAPI exception handlers only wrap it."""
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
+from typing import Any, ClassVar
 
 from splitpy_core.domain.errors import (
     AlreadyAMember,
@@ -10,6 +11,7 @@ from splitpy_core.domain.errors import (
     GroupArchived,
     NotAnAdministrator,
 )
+from splitpy_core.ports.group_repository import ConcurrencyConflict
 
 PROBLEM_CONTENT_TYPE = "application/problem+json"
 TYPE_BASE = "https://splitpy.example/errors/"
@@ -23,6 +25,17 @@ STATUS_BY_ERROR: Mapping[type[DomainError], int] = {
     AlreadyAMember: 409,
 }
 INVARIANT_VIOLATION = 422
+
+
+class Unauthenticated(Exception):
+    code: ClassVar[str] = "UNAUTHENTICATED"
+
+
+# Not domain errors, but the client caused them and can act on them.
+STATUS_BY_CLIENT_ERROR: Mapping[type[Exception], int] = {
+    Unauthenticated: 401,
+    ConcurrencyConflict: 409,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,10 +52,23 @@ class Problem:
 
 
 def problem_for(error: Exception, instance: str) -> Problem:
+    for cls, status in STATUS_BY_CLIENT_ERROR.items():
+        if isinstance(error, cls):
+            return _problem(cls.code, status, str(error), instance)
     if not isinstance(error, DomainError):
         # Never echo an unexpected error: its message may expose internal state.
         return _problem("INTERNAL_ERROR", 500, "An unexpected error occurred.", instance)
     return _problem(error.code, _status_for(error), str(error), instance)
+
+
+def validation_problem(errors: Iterable[Mapping[str, Any]], instance: str) -> Problem:
+    """Names each field without its location prefix (body, query), never echoing the input."""
+    detail = "; ".join(f"{_field(error['loc'])}: {error['msg']}" for error in errors)
+    return _problem("VALIDATION_ERROR", INVARIANT_VIOLATION, detail, instance)
+
+
+def _field(loc: Sequence[object]) -> str:
+    return ".".join(str(part) for part in loc[1:])
 
 
 def _status_for(error: DomainError) -> int:
