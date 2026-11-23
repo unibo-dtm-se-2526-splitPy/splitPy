@@ -12,7 +12,7 @@ from splitpy_app.adapters.rest.problems import (
     problem_for,
     validation_problem,
 )
-from splitpy_app.adapters.rest.routers import insights, payments
+from splitpy_app.adapters.rest.routers import expenses, groups, insights, payments
 from splitpy_core.domain.errors import DomainError
 
 API_PREFIX = "/api/v1"
@@ -26,6 +26,8 @@ def create_app(services: Services) -> FastAPI:
         app.add_exception_handler(error, _error)
     # Starlette answers with this one and then re-raises, so the server still logs the error.
     app.add_exception_handler(Exception, _error)
+    app.include_router(groups.router, prefix=API_PREFIX)
+    app.include_router(expenses.router, prefix=API_PREFIX)
     app.include_router(payments.router, prefix=API_PREFIX)
     app.include_router(insights.router, prefix=API_PREFIX)
     return app

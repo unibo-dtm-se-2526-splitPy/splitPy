@@ -4,6 +4,7 @@ from datetime import date
 
 from splitpy_app.application.ports import UnitOfWork
 from splitpy_core.domain.category import Category
+from splitpy_core.domain.errors import ExpenseNotFound
 from splitpy_core.domain.expense import Expense
 from splitpy_core.domain.ids import ExpenseId, GroupId, PaymentId, UserId
 from splitpy_core.domain.money import Money
@@ -125,3 +126,43 @@ class ListPayments:
     def execute(self, *, group_id: GroupId) -> list[Payment]:
         with self._uow:
             return list(self._uow.groups.get(group_id).payments())
+
+
+class GetExpense:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    def execute(self, *, group_id: GroupId, expense_id: ExpenseId) -> Expense:
+        with self._uow:
+            group = self._uow.groups.get(group_id)
+        for expense in group.active_expenses():
+            if expense.id == expense_id:
+                return expense
+        raise ExpenseNotFound(f"expense {expense_id} not found")
+
+
+class ListExpenses:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    def execute(
+        self,
+        *,
+        group_id: GroupId,
+        start: date | None = None,
+        end: date | None = None,
+        category: Category | None = None,
+        paid_by: UserId | None = None,
+    ) -> list[Expense]:
+        """Newest first (RF-14); within a day by id, the same order on every adapter."""
+        with self._uow:
+            group = self._uow.groups.get(group_id)
+        listed = [
+            expense
+            for expense in group.active_expenses()
+            if (start is None or expense.occurred_on >= start)
+            and (end is None or expense.occurred_on <= end)
+            and (category is None or expense.category == category)
+            and (paid_by is None or expense.paid_by == paid_by)
+        ]
+        return sorted(listed, key=lambda expense: (expense.occurred_on, expense.id), reverse=True)

@@ -21,6 +21,7 @@ from splitpy_app.application.use_cases.groups import (
     AddMember,
     ArchiveGroup,
     CreateGroup,
+    GetGroup,
     ListMyGroups,
     RemoveMember,
 )
@@ -73,6 +74,14 @@ class TestAddMember:
         )
         added = next(m for m in load(uow).active_members() if m.user_id == BOB)
         assert (added.role, added.joined_at) == (Role.MEMBER, NOW)
+
+    def test_rf05_returns_the_group_with_the_new_member(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow)
+        group = AddMember(uow, FixedClock()).execute(
+            group_id=GROUP_ID, user_id=BOB, role=Role.MEMBER, by=ALICE
+        )
+        assert [m.user_id for m in group.active_members()] == [ALICE, BOB]
 
     def test_rf15_addition_is_recorded(self):
         uow = InMemoryUnitOfWork()
@@ -128,6 +137,24 @@ class TestArchiveGroup:
         ArchiveGroup(uow, FixedClock()).execute(group_id=GROUP_ID, by=ALICE)
         assert load(uow).status == GroupStatus.ARCHIVED
         assert feed(uow) == [RecordedEvent(GroupArchived(group_id=GROUP_ID, by=ALICE), NOW)]
+
+    def test_rf16_returns_the_archived_group(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow)
+        group = ArchiveGroup(uow, FixedClock()).execute(group_id=GROUP_ID, by=ALICE)
+        assert group.status == GroupStatus.ARCHIVED
+
+
+class TestGetGroup:
+    def test_rf04_returns_the_stored_group(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB)
+        group = GetGroup(uow).execute(group_id=GROUP_ID)
+        assert (group.id, group.name, group.version) == (GROUP_ID, "Flat", 1)
+
+    def test_unknown_group_is_not_found(self):
+        with pytest.raises(GroupNotFound):
+            GetGroup(InMemoryUnitOfWork()).execute(group_id=GROUP_ID)
 
 
 class TestListMyGroups:
