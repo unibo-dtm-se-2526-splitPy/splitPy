@@ -1,5 +1,6 @@
 """Use cases that register, update and remove expenses and record payments."""
 
+from datetime import date
 from uuid import UUID
 
 import pytest
@@ -22,6 +23,8 @@ from support import (
 from splitpy_app.adapters.persistence.in_memory import InMemoryUnitOfWork
 from splitpy_app.application.ports import RecordedEvent
 from splitpy_app.application.use_cases.expenses import (
+    GetExpense,
+    ListExpenses,
     ListPayments,
     RecordPayment,
     RegisterExpense,
@@ -29,7 +32,7 @@ from splitpy_app.application.use_cases.expenses import (
     UpdateExpense,
 )
 from splitpy_core.domain.category import Category
-from splitpy_core.domain.errors import GroupNotFound, NotAMember
+from splitpy_core.domain.errors import ExpenseNotFound, GroupNotFound, NotAMember
 from splitpy_core.domain.events import (
     ExpenseRegistered,
     ExpenseRemoved,
@@ -60,6 +63,30 @@ def stored_dinner(uow: InMemoryUnitOfWork) -> None:
     with uow:
         uow.groups.save(group)
         uow.commit()
+
+
+def stored_expenses(uow: InMemoryUnitOfWork, *expenses: tuple[int, date, Category, UserId]) -> None:
+    """Expenses of 30.00 split among everyone, given as (id, occurred_on, category, paid_by)."""
+    group = load(uow)
+    for id, occurred_on, category, paid_by in expenses:
+        group.register_expense(
+            ExpenseId(UUID(int=id)),
+            "Dinner",
+            eur("30.00"),
+            paid_by,
+            EVERYONE,
+            category,
+            occurred_on,
+            by=ALICE,
+        )
+    group.pull_events()
+    with uow:
+        uow.groups.save(group)
+        uow.commit()
+
+
+def ids(expenses: list[Expense]) -> list[int]:
+    return [expense.id.value.int for expense in expenses]
 
 
 def register_dinner(uow: InMemoryUnitOfWork, paid_by: UserId = ALICE) -> Expense:
@@ -224,3 +251,70 @@ class TestListPayments:
     def test_rf12_unknown_group_raises_group_not_found(self):
         with pytest.raises(GroupNotFound):
             ListPayments(InMemoryUnitOfWork()).execute(group_id=GROUP_ID)
+
+
+class TestGetExpense:
+    def test_rf14_returns_the_stored_expense(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_dinner(uow)
+        expense = GetExpense(uow).execute(group_id=GROUP_ID, expense_id=EXPENSE_ID)
+        assert (expense.id, expense.amount) == (EXPENSE_ID, eur("30.00"))
+
+    def test_rf09_removed_expense_is_not_found(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_dinner(uow)
+        RemoveExpense(uow, FixedClock()).execute(group_id=GROUP_ID, expense_id=EXPENSE_ID, by=ALICE)
+        with pytest.raises(ExpenseNotFound):
+            GetExpense(uow).execute(group_id=GROUP_ID, expense_id=EXPENSE_ID)
+
+
+class TestListExpenses:
+    def test_rf14_newest_first_and_by_id_within_a_day(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_expenses(
+            uow,
+            (101, date(2026, 1, 10), Category.FOOD, ALICE),
+            (102, date(2026, 1, 20), Category.FOOD, ALICE),
+            (103, date(2026, 1, 10), Category.FOOD, ALICE),
+        )
+        assert ids(ListExpenses(uow).execute(group_id=GROUP_ID)) == [102, 103, 101]
+
+    def test_rf09_removed_expenses_are_not_listed(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_dinner(uow)
+        RemoveExpense(uow, FixedClock()).execute(group_id=GROUP_ID, expense_id=EXPENSE_ID, by=ALICE)
+        assert ListExpenses(uow).execute(group_id=GROUP_ID) == []
+
+    def test_rf14_period_bounds_are_inclusive(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_expenses(
+            uow,
+            (101, date(2026, 1, 10), Category.FOOD, ALICE),
+            (102, date(2026, 1, 15), Category.FOOD, ALICE),
+            (103, date(2026, 1, 20), Category.FOOD, ALICE),
+        )
+        listed = ListExpenses(uow).execute(
+            group_id=GROUP_ID, start=date(2026, 1, 15), end=date(2026, 1, 20)
+        )
+        assert ids(listed) == [103, 102]
+
+    def test_rf14_filtered_by_category_and_payer(self):
+        uow = InMemoryUnitOfWork()
+        stored_group(uow, BOB, CAROL)
+        stored_expenses(
+            uow,
+            (101, DAY, Category.FOOD, ALICE),
+            (102, DAY, Category.FOOD, BOB),
+            (103, DAY, Category.TRANSPORT, BOB),
+        )
+        listed = ListExpenses(uow).execute(group_id=GROUP_ID, category=Category.FOOD, paid_by=BOB)
+        assert ids(listed) == [102]
+
+    def test_unknown_group_is_not_found(self):
+        with pytest.raises(GroupNotFound):
+            ListExpenses(InMemoryUnitOfWork()).execute(group_id=GROUP_ID)
