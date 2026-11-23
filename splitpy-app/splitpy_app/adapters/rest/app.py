@@ -19,8 +19,15 @@ API_PREFIX = "/api/v1"
 
 
 def create_app(services: Services) -> FastAPI:
-    app = FastAPI(title="splitPy")
+    app = api()
     app.state.services = services
+    return app
+
+
+def api() -> FastAPI:
+    """Routes and error handlers without the services: enough to describe the API."""
+    # The version of the contract, as in /api/v1: it changes only with a breaking change.
+    app = FastAPI(title="splitPy", version="1")
     app.add_exception_handler(RequestValidationError, _validation_error)
     for error in (DomainError, *STATUS_BY_CLIENT_ERROR):
         app.add_exception_handler(error, _error)
